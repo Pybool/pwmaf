@@ -118,7 +118,7 @@ export class ConfigValidationError extends Error {
         : "";
 
     const footer = [
-      `  ${DIM}Config file : pwmaf.config.ts${RESET}`,
+      `  ${DIM}Config file : base.config.ts${RESET}`,
       `  ${DIM}Users file  : src/data/users.json (or AUTH_USERS_FILE env var)${RESET}`,
       "",
     ].join("\n");

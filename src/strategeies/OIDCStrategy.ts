@@ -1,6 +1,5 @@
-import { Browser } from "@playwright/test";
 import { AuthResult, IAuthStrategy } from "./IAuthStrategy";
-import { IAuthConfig, IUser, OIDCProvider } from "../types";
+import { IAuthConfig, IUser, OIDCProvider, PWBrowser } from "../types";
 import { AuthPage } from "../pages/AuthPage";
 import { authConfig } from "../core/AuthManagerInstance";
 
@@ -28,7 +27,7 @@ function getOIDCInterceptPattern(provider?: OIDCProvider): string {
 
 export class OIDCStrategy implements IAuthStrategy {
   async authenticate(
-    browser: Browser,
+    browser: PWBrowser,
     user: IUser,
     config: IAuthConfig,
   ): Promise<AuthResult> {

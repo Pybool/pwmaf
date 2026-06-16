@@ -1,8 +1,9 @@
-import { Browser, BrowserContext } from "@playwright/test";
 import {
   EnrichedStorageState,
   IAuthConfig,
   IUser,
+  PWBrowser,
+  PWContext,
   StorageState,
   StorageStateMetadata,
 } from "../types";
@@ -13,8 +14,8 @@ import fs from "fs";
 
 export class AuthManager {
   private factory: AuthFactory;
-  private browser!: Browser;
-  private userContexts = new Map<string, BrowserContext>();
+  private browser!: PWBrowser;
+  private userContexts = new Map<string, PWContext>();
 
   constructor(private config: IAuthConfig) {
     this.factory = new AuthFactory();
@@ -33,12 +34,12 @@ export class AuthManager {
   }
 
   private async authenticateWithRetry(
-    browser: Browser,
+    browser: PWBrowser,
     user: IUser,
     effectiveConfig: IAuthConfig,
     maxRetries = 2,
   ): Promise<{
-    context: BrowserContext;
+    context: PWContext;
     metadata?: StorageStateMetadata;
   }> {
     const strategy = this.factory.getStrategy(effectiveConfig);
@@ -67,9 +68,9 @@ export class AuthManager {
   }
 
   private async authenticateUser(
-    browser: Browser,
+    browser: PWBrowser,
     user: IUser,
-  ): Promise<BrowserContext> {
+  ): Promise<PWContext> {
     const effectiveConfig = this.buildEffectiveConfig(user);
 
     const { context, metadata } = await this.authenticateWithRetry(
@@ -88,7 +89,7 @@ export class AuthManager {
     return context;
   }
 
-  async setup(browser: Browser): Promise<void> {
+  async setup(browser: PWBrowser): Promise<void> {
     this.browser = browser;
     if (!this.config.users.length) {
       throw new Error("At least one user must be configured");
@@ -113,8 +114,8 @@ export class AuthManager {
   }
   async reauthenticateUser(
     username: string,
-    browser: Browser,
-  ): Promise<BrowserContext> {
+    browser: PWBrowser,
+  ): Promise<PWContext> {
     console.log("reauthenticateUser caslled ===> ");
     const user = this.config.users.find((u) => u.username === username);
 
@@ -140,8 +141,8 @@ export class AuthManager {
 
   async getContext(
     username: string,
-    browser: Browser,
-  ): Promise<BrowserContext> {
+    browser: PWBrowser,
+  ): Promise<PWContext> {
     const storagePath = `${this.config.storageStatePath}/${username}.json`;
     return fs.existsSync(storagePath)
       ? browser.newContext({ storageState: storagePath })

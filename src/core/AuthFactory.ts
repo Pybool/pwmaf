@@ -1,4 +1,3 @@
-import { Browser, BrowserContext } from "@playwright/test";
 import {
   EmailOTPStrategy,
   EmailPasswordOTPStrategy,
@@ -13,6 +12,8 @@ import {
   EnrichedStorageState,
   IAuthConfig,
   IUser,
+  PWBrowser,
+  PWContext,
   StorageStateMetadata,
 } from "../types";
 import fs from "fs";
@@ -42,7 +43,7 @@ export class AuthFactory {
   }
 
   async createSession(
-    browser: Browser,
+    browser: PWBrowser,
     user: IUser,
     strategy: IAuthStrategy,
     config: IAuthConfig,
@@ -51,7 +52,7 @@ export class AuthFactory {
   }
 
   async saveSession(
-    context: BrowserContext,
+    context: PWContext,
     filePath: string,
     metadata: StorageStateMetadata = {},
   ): Promise<void> {

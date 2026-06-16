@@ -1,14 +1,13 @@
-import { Browser, BrowserContext } from "@playwright/test";
-import { IAuthConfig, IUser, StorageStateMetadata } from "../types";
+import { IAuthConfig, IUser, PWBrowser, PWContext, StorageStateMetadata } from "../types";
 
 export interface AuthResult {
-  context: BrowserContext;
+  context: PWContext;
   metadata?: StorageStateMetadata;
 }
 
 export interface IAuthStrategy {
   authenticate(
-    browser: Browser,
+    browser: PWBrowser,
     user: IUser,
     config: IAuthConfig,
   ): Promise<AuthResult>;

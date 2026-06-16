@@ -1,5 +1,4 @@
-import { Locator, Page } from "@playwright/test";
-import { AuthOverrideSelectors, OAuthProvider } from "../types";
+import { AuthOverrideSelectors, OAuthProvider, PWLocator, PWPage } from "../types";
 
 const DEFAULTS: Required<AuthOverrideSelectors> = {
   emailOrUsernameField: "[data-testid='email']",
@@ -19,7 +18,7 @@ const DEFAULTS: Required<AuthOverrideSelectors> = {
 
 export class AuthPage {
   constructor(
-    private page: Page,
+    private page: PWPage,
     private overrides: AuthOverrideSelectors = {},
   ) {}
 
@@ -27,35 +26,35 @@ export class AuthPage {
     return this.overrides[key]?.trim() || DEFAULTS[key];
   }
 
-  emailOrUsernameField(): Locator {
+  emailOrUsernameField(): PWLocator {
     return this.page.locator(this.sel("emailOrUsernameField"));
   }
 
-  passwordField(): Locator {
+  passwordField(): PWLocator {
     return this.page.locator(this.sel("passwordField"));
   }
 
-  otpSingleField(): Locator {
+  otpSingleField(): PWLocator {
     return this.page.locator(this.sel("otpSingleField"));
   }
 
-  otpMultiFields(): Locator {
+  otpMultiFields(): PWLocator {
     return this.page.locator(this.sel("otpMultiFields"));
   }
 
-  emailSubmitButton(): Locator {
+  emailSubmitButton(): PWLocator {
     return this.page.locator(this.sel("emailSubmitButton"));
   }
 
-  passwordSubmitButton(): Locator {
+  passwordSubmitButton(): PWLocator {
     return this.page.locator(this.sel("passwordSubmitButton"));
   }
 
-  otpSubmitButton(): Locator {
+  otpSubmitButton(): PWLocator {
     return this.page.locator(this.sel("otpSubmitButton"));
   }
 
-  oauthButton(provider: OAuthProvider): Locator {
+  oauthButton(provider: OAuthProvider): PWLocator {
     return this.page.locator(this.sel(`${provider}OAuthButton`));
   }
 

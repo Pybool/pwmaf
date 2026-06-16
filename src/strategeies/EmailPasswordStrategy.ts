@@ -1,12 +1,11 @@
-import { Browser, BrowserContext } from "@playwright/test";
 import { AuthResult, IAuthStrategy } from "./IAuthStrategy";
-import { IAuthConfig, IUser } from "../types";
+import { IAuthConfig, IUser, PWBrowser, PWContext } from "../types";
 import { AuthPage } from "../pages/AuthPage";
 import { buildApiUrl } from "../utils/helpers";
 
 export class EmailPasswordStrategy implements IAuthStrategy {
   async authenticate(
-    browser: Browser,
+    browser: PWBrowser,
     user: IUser,
     config: IAuthConfig,
   ): Promise<AuthResult> {
@@ -33,9 +32,6 @@ export class EmailPasswordStrategy implements IAuthStrategy {
       log(`successUrl: ${successUrl}`);
       log(`layout: ${authPageLayout}`);
 
-      // =========================
-      // API FLOW
-      // =========================
       if (user.isApi || config.isApi) {
         log("ENTER API AUTH PATH");
 
@@ -60,18 +56,13 @@ export class EmailPasswordStrategy implements IAuthStrategy {
         };
       }
 
-      // =========================
-      // VALIDATION
-      // =========================
       if (!user?.password) {
         throw new Error("Password is required for EmailPassword Strategy");
       }
 
       log("Password validated");
 
-      // =========================
-      // BROWSER FLOW
-      // =========================
+
       const context = await browser.newContext();
 
       log("Browser context created");
@@ -88,9 +79,6 @@ export class EmailPasswordStrategy implements IAuthStrategy {
 
       log("Navigation complete");
 
-      // =========================
-      // LOGIN FLOW
-      // =========================
       if (authPageLayout === "single-page") {
         log("Single-page login flow");
 
@@ -134,9 +122,6 @@ export class EmailPasswordStrategy implements IAuthStrategy {
         );
       }
 
-      // =========================
-      // FINAL STEP
-      // =========================
       log(`Waiting for URL: ${successUrl}`);
 
       await page.waitForURL(successUrl);
@@ -164,15 +149,12 @@ export class EmailPasswordStrategy implements IAuthStrategy {
     }
   }
 
-  // =========================
-  // API AUTH (also instrumented)
-  // =========================
   private async authenticateViaAPI(
-    browser: Browser,
+    browser: PWBrowser,
     user: IUser,
     baseUrl: string,
     config: IAuthConfig,
-  ): Promise<BrowserContext> {
+  ): Promise<PWContext> {
     const started = Date.now();
 
     const log = (step: string) => {

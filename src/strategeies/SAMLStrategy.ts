@@ -1,11 +1,9 @@
-import { Browser } from "@playwright/test";
 import { AuthResult, IAuthStrategy } from "./IAuthStrategy";
-import { IAuthConfig, IUser, SAMLProvider } from "../types";
-import { AuthPage } from "../pages/AuthPage";
+import { IAuthConfig, IUser, PWBrowser } from "../types";
 
 export class SAMLStrategy implements IAuthStrategy {
   async authenticate(
-    browser: Browser,
+    browser: PWBrowser,
     user: IUser,
     config: IAuthConfig,
   ): Promise<AuthResult> {

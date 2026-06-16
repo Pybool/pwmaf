@@ -1,5 +1,5 @@
 import axios from "axios";
-import { Page } from "@playwright/test";
+import { PWPage } from "../types";
 import { AuthSession, IOTPConfig, IOTPRequestConfig, IUser } from "../types";
 
 import { wrapper } from "axios-cookiejar-support";
@@ -7,14 +7,14 @@ import { CookieJar } from "tough-cookie";
 
 export class OTPResolver {
   private capturedOTP: string | null = null;
-  private jar = new CookieJar();
+  private jar = new CookieJar() as any;
   private client = wrapper(
-    axios.create({ jar: this.jar, withCredentials: true }),
+    axios.create({ jar: this.jar, withCredentials: true } as any),
   );
 
   constructor(private config: IOTPConfig) {}
 
-  async interceptOTP(page: Page): Promise<void> {
+  async interceptOTP(page: PWPage): Promise<void> {
     const pattern = this.config.interceptPattern ?? "**/api/send-otp**";
     await page.route(pattern, async (route) => {
       const response = await route.fetch();

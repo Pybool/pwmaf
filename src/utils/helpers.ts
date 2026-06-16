@@ -1,6 +1,5 @@
 import fs from "fs/promises";
-import { StorageState } from "../types";
-import { Browser } from "@playwright/test";
+import { PWBrowser, StorageState } from "../types";
 import { getOrCreateAuthManager } from "../core/AuthManagerInstance";
 
 export interface TokenExpiryConfig {
@@ -36,7 +35,7 @@ export function isTokenExpired(
   return false;
 }
 
-export async function ensureValidSession(username: string, browser: Browser) {
+export async function ensureValidSession(username: string, browser: PWBrowser) {
   const file = `.auth/${username}.json`;
 
   const state = await fs.readFile(file, "utf-8").catch(() => null);

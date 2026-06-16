@@ -165,7 +165,7 @@ export function generateConfig(input: GeneratorInput): GeneratorOutput {
     notes.push("   Ideal for: single-user setups, quick starts, simple apps.");
   } else {
     // users.json mode — config just has users: [] as IUser[]
-    usersBlock = `  // Users are loaded automatically from users.json (see usersFilePath above).\n  users: [] as IUser[],\n`;
+    usersBlock = `  // Users are loaded automatically from users.json.\n  users: [] as IUser[],\n`;
     usersFile = _generateUsersJson(
       authType,
       effectiveIsApi,
@@ -272,7 +272,7 @@ function _assembleConfigFile(p: {
   OAuthProvider,
   OIDCProvider,
   SAMLProvider,
-} from "@pwmaf/types";
+} from "pwmaf";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BASE CONFIG
@@ -313,13 +313,6 @@ ${oauthSection}${oidcSection}${samlSection}
   successUrl: "**/dashboard**",
 
   // ── Users ─────────────────────────────────────────────────────────────────
-  ${
-    p.configStyle === "users-file"
-      ? `\n  // Path to the JSON file that defines test users.
-  // Each user can override any field from this config (authType, actionUrl, etc.)
-  usersFilePath: "src/data/users.json",\n`
-      : ""
-  }
 ${usersBlock}
   // ── Browser Login Layout ──────────────────────────────────────────────────
   // How the login form is structured. Only relevant for browser flows.

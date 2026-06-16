@@ -1,4 +1,3 @@
-import { Browser, BrowserContext } from "@playwright/test";
 import { AuthResult, IAuthStrategy } from "./IAuthStrategy";
 import {
   AuthPageLayout,
@@ -6,13 +5,15 @@ import {
   IAuthConfig,
   IUser,
   OTPMode,
+  PWBrowser,
+  PWContext,
 } from "../types";
 import { AuthPage } from "../pages/AuthPage";
 import { OTPResolver } from "../core/OtpResolver";
 
 export class EmailOTPStrategy implements IAuthStrategy {
   async authenticate(
-    browser: Browser,
+    browser: PWBrowser,
     user: IUser,
     config: IAuthConfig,
   ): Promise<AuthResult> {
@@ -183,7 +184,7 @@ export class EmailOTPStrategy implements IAuthStrategy {
   }
 
   private async applySession(
-    context: BrowserContext,
+    context: PWContext,
     session: AuthSession,
   ): Promise<void> {
     if (session.cookies?.length) {

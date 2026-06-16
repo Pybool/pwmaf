@@ -1,6 +1,5 @@
-import { Browser, BrowserContext } from "@playwright/test";
 import { AuthResult, IAuthStrategy } from "./IAuthStrategy";
-import { IAuthConfig, IUser, OAuthProvider } from "../types";
+import { IAuthConfig, IUser, OAuthProvider, PWBrowser } from "../types";
 import { AuthPage } from "../pages/AuthPage";
 
 const PROVIDER_PATTERNS: Record<string, string> = {
@@ -25,7 +24,7 @@ function getInterceptPattern(provider?: string): string {
 
 export class OAuthStrategy implements IAuthStrategy {
   async authenticate(
-    browser: Browser,
+    browser: PWBrowser,
     user: IUser,
     config: IAuthConfig,
   ): Promise<AuthResult> {

@@ -6,46 +6,66 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 /**
- * Shape of the pwmaf.config.ts the consuming project must provide at its root.
- * Example:
- *   export default {
- *     usersPath: "./test-data/users.json",
- *   } satisfies IAuthConfig;
- */
-
-/**
- * Walks up the directory tree from `startDir` until it finds a folder
- * containing package.json — that folder is the consuming project's root.
- *
- * Starting from process.cwd() (not __dirname) means we always anchor to
- * wherever the QA is running their tests, not deep inside node_modules.
+ * --------------------------------------------
+ * PROJECT ROOT RESOLVER (BULLETPROOF)
+ * --------------------------------------------
  */
 export function findProjectRoot(startDir: string = process.cwd()): string {
   let dir = path.resolve(startDir);
 
   while (true) {
-    if (fs.existsSync(path.join(dir, "package.json"))) {
+    const pkg = path.join(dir, "package.json");
+
+    if (fs.existsSync(pkg)) {
       return dir;
     }
+
     const parent = path.dirname(dir);
+
     if (parent === dir) {
-      // Hit the filesystem root without finding package.json
       throw new Error(
-        `[auth-config] Cannot locate project root: no package.json found above "${startDir}"`,
+        `[auth-config] Cannot locate project root (no package.json found above "${startDir}")`
       );
     }
+
     dir = parent;
   }
 }
 
 /**
- * Resolves and requires pwmaf.config.ts (preferred) or pwmaf.config.js (fallback)
- * from the given project root. Registers ts-node on demand so .ts configs
- * work without a pre-compile step.
+ * --------------------------------------------
+ * SAFE TS-NODE LOADER (PROJECT-SCOPED)
+ * --------------------------------------------
  */
-export function loadAuthConfigFile(projectRoot: string): IAuthConfig {
-  const tsPath = path.join(projectRoot, "pwmaf.config.ts");
-  const jsPath = path.join(projectRoot, "pwmaf.config.js");
+function registerTsNode(projectRoot: string): void {
+  const tsNodeModule = require.resolve("ts-node", {
+    paths: [projectRoot],
+  });
+
+  try {
+    require(tsNodeModule).register({
+      transpileOnly: true,
+      files: false,
+      compilerOptions: {
+        module: "commonjs",
+      },
+    });
+  } catch (err) {
+    throw new Error(
+      `[auth-config] Failed to register ts-node.\n` +
+      `${(err as Error).message}`
+    );
+  }
+}
+
+/**
+ * --------------------------------------------
+ * LOAD CONFIG FILE (TS OR JS)
+ * --------------------------------------------
+ */
+function loadAuthConfigFile(projectRoot: string): IAuthConfig {
+  const tsPath = path.join(projectRoot, "base.config.ts");
+  const jsPath = path.join(projectRoot, "base.config.js");
 
   const configPath = fs.existsSync(tsPath)
     ? tsPath
@@ -55,91 +75,86 @@ export function loadAuthConfigFile(projectRoot: string): IAuthConfig {
 
   if (!configPath) {
     throw new Error(
-      `[auth-config] No pwmaf.config.ts or pwmaf.config.js found in project root: "${projectRoot}"\n` +
-        `  Create one at: ${tsPath}`,
+      `[auth-config] Missing base.config.ts or base.config.js in project root.\n` +
+        `Expected: ${tsPath}`
     );
   }
 
+  // Enable TS support only if needed
   if (configPath.endsWith(".ts")) {
-    const alreadyRegistered = !!(process as any)[
-      Symbol.for("ts-node.register.instance")
-    ];
-
-    if (!alreadyRegistered) {
-      try {
-        require("ts-node").register({ transpileOnly: true });
-      } catch {
-        throw new Error(
-          `[auth-config] Found "${configPath}" but ts-node is not installed.\n` +
-            `  Fix: npm install -D ts-node`,
-        );
-      }
-    }
+    registerTsNode(projectRoot);
   }
 
-  let mod: { default?: IAuthConfig } | IAuthConfig;
+  let mod: any;
+
   try {
     mod = require(configPath);
   } catch (err) {
     throw new Error(
-      `[auth-config] Failed to load "${configPath}": ${(err as Error).message}`,
+      `[auth-config] Failed to load config: "${configPath}"\n` +
+        `${(err as Error).message}`
     );
   }
 
-  const resolvedMod = (mod as any).default ?? mod;
-  const config = resolvedMod?.BASE_CONFIG;
+  const config = mod?.default ?? mod?.BASE_CONFIG ?? mod;
 
-  if (!config) {
+  if (!config || typeof config !== "object") {
     throw new Error(
-      `[auth-config] BASE_CONFIG not found in "${configPath}". Ensure config exports { BASE_CONFIG }`,
+      `[auth-config] Invalid config export in "${configPath}".\n` +
+        `Expected: export const BASE_CONFIG or export default`
     );
   }
 
-  if (!Object.keys(config).length)
-    throw new Error("Invalid configuration in pwmaf.config");
-
-  return config;
+  return config as IAuthConfig;
 }
 
-function loadJsonFile(absolutePath: string): IUser[] {
-  if (!fs.existsSync(absolutePath)) {
-    console.warn(`[auth-config] Users file not found: ${absolutePath}`);
+/**
+ * --------------------------------------------
+ * LOAD USERS JSON (SAFE)
+ * --------------------------------------------
+ */
+function loadJsonFile(filePath: string): IUser[] {
+  if (!fs.existsSync(filePath)) {
     return [];
   }
+
   try {
-    return JSON.parse(fs.readFileSync(absolutePath, "utf-8")) as IUser[];
-  } catch {
+    const raw = fs.readFileSync(filePath, "utf-8");
+    const parsed = JSON.parse(raw);
+
+    if (!Array.isArray(parsed)) {
+      throw new Error("Users JSON must be an array");
+    }
+
+    return parsed as IUser[];
+  } catch (err) {
     throw new Error(
-      `[auth-config] Failed to parse users JSON: "${absolutePath}"`,
+      `[auth-config] Failed to parse users JSON: "${filePath}"\n` +
+        `${(err as Error).message}`
     );
   }
 }
 
 /**
- * Automatically discovers pwmaf.config.ts at the consuming project's root
- * (detected via package.json traversal), loads users from the path it declares,
- * and returns a fully resolved IAuthConfig.
- *
- * QAs no longer pass usersPath manually — it lives in their pwmaf.config.ts.
+ * --------------------------------------------
+ * PUBLIC API
+ * --------------------------------------------
  */
 export function createAuthConfig(usersPath: string): IAuthConfig {
-  if (!usersPath) throw new Error("Please provide a valid usersPath store");
+  if (!usersPath) {
+    throw new Error("[auth-config] usersPath is required");
+  }
+
   const projectRoot = findProjectRoot();
+
   const config = loadAuthConfigFile(projectRoot);
+
   const absoluteUsersPath = path.resolve(projectRoot, usersPath);
-  config.users = loadJsonFile(absoluteUsersPath);
-  return config;
+
+  const users = loadJsonFile(absoluteUsersPath);
+
+  return {
+    ...config,
+    users,
+  };
 }
-
-// export function getUsersFilePath(
-//   config: IAuthConfig): string {
-//   return (
-//     (config.isApi
-//       ? "src/data/users.api.json"
-//       : "src/data/users.json")
-//   );
-// }
-
-
-
-// (process.env.USE_API === 'true') || false

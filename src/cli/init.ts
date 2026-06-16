@@ -15,9 +15,9 @@
  * this works in any environment without installing enquirer/inquirer.
  */
 
-import * as fs   from "fs";
+import * as fs from "fs";
 import * as path from "path";
-import * as rl   from "readline";
+import * as rl from "readline";
 
 import {
   generateConfig,
@@ -33,11 +33,13 @@ import {
   TokenType,
   ConfigStyle,
 } from "./config-generator";
+import { logger } from "../utils/logger";
+import { findProjectRoot } from "../utils/findProjectRoot";
 
 // ─── Readline helpers ─────────────────────────────────────────────────────────
 
 const iface = rl.createInterface({
-  input:  process.stdin,
+  input: process.stdin,
   output: process.stdout,
 });
 
@@ -55,14 +57,13 @@ function askChoice<T extends string>(
   const choiceStr = choices
     .map((c, i) => `  ${i + 1}. ${c}${c === defaultValue ? " (default)" : ""}`)
     .join("\n");
-  return ask(`${question}\n${choiceStr}\n→`)
-    .then((ans) => {
-      const num = parseInt(ans);
-      if (!isNaN(num) && num >= 1 && num <= choices.length) {
-        return choices[num - 1];
-      }
-      return defaultValue;
-    });
+  return ask(`${question}\n${choiceStr}\n→`).then((ans) => {
+    const num = parseInt(ans);
+    if (!isNaN(num) && num >= 1 && num <= choices.length) {
+      return choices[num - 1];
+    }
+    return defaultValue;
+  });
 }
 
 function askYesNo(question: string, defaultValue: boolean): Promise<boolean> {
@@ -83,7 +84,9 @@ async function main() {
     console.log("\nAvailable presets:\n");
     Object.keys(PRESETS).forEach((key) => {
       const p = PRESETS[key];
-      console.log(`  ${key.padEnd(40)} authType: ${p.authType}, isApi: ${p.isApi}, style: ${p.configStyle}`);
+      console.log(
+        `  ${key.padEnd(40)} authType: ${p.authType}, isApi: ${p.isApi}, style: ${p.configStyle}`,
+      );
     });
     console.log("\nUsage: npx pwmaf init --preset <name>\n");
     process.exit(0);
@@ -94,7 +97,9 @@ async function main() {
   if (presetIdx !== -1) {
     const presetName = args[presetIdx + 1];
     if (!presetName || !PRESETS[presetName]) {
-      console.error(`\n❌  Unknown preset "${presetName}". Run --list-presets to see options.\n`);
+      console.error(
+        `\n❌  Unknown preset "${presetName}". Run --list-presets to see options.\n`,
+      );
       process.exit(1);
     }
     const output = generateConfig(PRESETS[presetName]);
@@ -111,8 +116,8 @@ async function main() {
   // ── Interactive mode ───────────────────────────────────────────────────────
   console.log(`
 ╔══════════════════════════════════════════════════════════════╗
-║           PWMAF — Auth Config Generator                     ║
-║           npx pwmaf init                                    ║
+║           PWMAF — Auth Config Generator                      ║
+║           npx pwmaf init                                     ║
 ╚══════════════════════════════════════════════════════════════╝
 
 Answer a few questions and we'll generate a ready-to-fly config.
@@ -122,7 +127,15 @@ Press Enter to accept the default value shown in (parentheses).
   // ── Auth type ──────────────────────────────────────────────────────────────
   const authType = await askChoice<AuthType>(
     "1. What authentication type does your app use?",
-    ["email-password", "email-otp", "email-password-otp", "oauth", "oidc", "saml", "custom"],
+    [
+      "email-password",
+      "email-otp",
+      "email-password-otp",
+      "oauth",
+      "oidc",
+      "saml",
+      "custom",
+    ],
     "email-password",
   );
 
@@ -136,10 +149,12 @@ Press Enter to accept the default value shown in (parentheses).
       false,
     );
   } else {
-    console.log(`\n2. authType "${authType}" requires browser navigation. isApi: false (auto-set).`);
+    console.log(
+      `\n2. authType "${authType}" requires browser navigation. isApi: false (auto-set).`,
+    );
   }
 
-  // ── Config style ───────────────────────────────────────────────────────────
+  // ── Config style
   const configStyleInput = await askChoice<"flat" | "users-file">(
     `3. Config style?
    flat       → single user defined inline in base.config.ts (simplest)
@@ -149,20 +164,22 @@ Press Enter to accept the default value shown in (parentheses).
   );
   const configStyle = configStyleInput as ConfigStyle;
 
-  // ── URLs ───────────────────────────────────────────────────────────────────
-  const baseUrl = await ask(
-    `4. Base URL of your app (press Enter for http://localhost:3000):`,
-  ) || "http://localhost:3000";
+  // ── URLs
+  const baseUrl =
+    (await ask(
+      `4. Base URL of your app (press Enter for http://localhost:3000):`,
+    )) || "http://localhost:3000";
 
   const defaultActionUrl = isApi ? baseUrl : `${baseUrl}/login`;
-  const actionUrl = await ask(
-    `5. Login URL${isApi ? " (API base URL)" : " (login page URL)"} (press Enter for ${defaultActionUrl}):`,
-  ) || defaultActionUrl;
+  const actionUrl =
+    (await ask(
+      `5. Login URL${isApi ? " (API base URL)" : " (login page URL)"} (press Enter for ${defaultActionUrl}):`,
+    )) || defaultActionUrl;
 
   // ── Provider selection ─────────────────────────────────────────────────────
   let oauthProvider: OAuthProvider | undefined;
-  let oidcProvider: OIDCProvider   | undefined;
-  let samlProvider: SAMLProvider   | undefined;
+  let oidcProvider: OIDCProvider | undefined;
+  let samlProvider: SAMLProvider | undefined;
 
   if (authType === "oauth") {
     oauthProvider = await askChoice<OAuthProvider>(
@@ -186,9 +203,9 @@ Press Enter to accept the default value shown in (parentheses).
     );
   }
 
-  // ── OTP settings ───────────────────────────────────────────────────────────
+  // ── OTP settings
   let otpSource: OTPSource | undefined;
-  let otpMode: OTPMode     | undefined;
+  let otpMode: OTPMode | undefined;
 
   const isOtp = ["email-otp", "email-password-otp"].includes(authType);
   if (isOtp) {
@@ -207,7 +224,6 @@ Press Enter to accept the default value shown in (parentheses).
     );
   }
 
-  // ── Token type (API mode only) ─────────────────────────────────────────────
   let tokenType: TokenType | undefined;
   if (isApi) {
     tokenType = await askChoice<TokenType>(
@@ -217,7 +233,6 @@ Press Enter to accept the default value shown in (parentheses).
     );
   }
 
-  // ── Multi-user ─────────────────────────────────────────────────────────────
   let includeAdminUser = false;
   if (configStyle === "users-file") {
     includeAdminUser = await askYesNo(
@@ -226,7 +241,6 @@ Press Enter to accept the default value shown in (parentheses).
     );
   }
 
-  // ── Generate ───────────────────────────────────────────────────────────────
   const input: GeneratorInput = {
     authType,
     isApi,
@@ -244,7 +258,6 @@ Press Enter to accept the default value shown in (parentheses).
 
   const output = generateConfig(input);
 
-  // ── Dry run preview ────────────────────────────────────────────────────────
   const preview = await askYesNo(
     "\nPreview the generated config before writing to disk?",
     true,
@@ -253,7 +266,6 @@ Press Enter to accept the default value shown in (parentheses).
     printGeneratedConfig(output);
   }
 
-  // ── Write files ────────────────────────────────────────────────────────────
   const dryRun = args.includes("--dry-run");
   if (!dryRun) {
     await writeFiles(output, args);
@@ -264,60 +276,78 @@ Press Enter to accept the default value shown in (parentheses).
   iface.close();
 }
 
-// ─── File writer ──────────────────────────────────────────────────────────────
-
-async function writeFiles(
-  output: ReturnType<typeof generateConfig>,
+export async function writeFiles(
+  output: ReturnType<any>,
   args: string[],
 ): Promise<void> {
+  const projectRoot = findProjectRoot();
+
   const outDir = (() => {
     const i = args.indexOf("--out");
-    return i !== -1 ? args[i + 1] : "src/auth";
+    if (i !== -1 && args[i + 1]) {
+      return path.resolve(projectRoot, args[i + 1]);
+    }
+    return projectRoot;
   })();
 
   fs.mkdirSync(outDir, { recursive: true });
 
-  // base.config.ts
-  const configPath = path.join(outDir, "base.config.ts");
+  /**
+   * =========================
+   * base.config.ts (ROOT ONLY)
+   * =========================
+   */
+  const configPath = path.join(projectRoot, "base.config.ts");
   const configExists = fs.existsSync(configPath);
+
   let writeConfig = true;
+
   if (configExists) {
     writeConfig = await askYesNo(
-      `⚠️  ${configPath} already exists. Overwrite?`,
+      `[WARN] ${configPath} exists. Overwrite?`,
       false,
     );
   }
+
   if (writeConfig) {
     fs.writeFileSync(configPath, output.configFile, "utf-8");
-    console.log(`✅  Written: ${configPath}`);
+    logger.ok(`Written ${configPath}`);
   } else {
-    console.log(`⏭️  Skipped: ${configPath}`);
+    logger.skip(`Skipped ${configPath}`);
   }
 
-  // users.json
+  /**
+   * =========================
+   * users.json (project/data)
+   * =========================
+   */
   if (output.usersFile) {
-    const dataDir   = path.join(outDir, "..", "data");
+    const dataDir = path.join(projectRoot, "data");
     const usersPath = path.join(dataDir, "users.json");
+
     fs.mkdirSync(dataDir, { recursive: true });
 
-    const usersExists = fs.existsSync(usersPath);
+    const exists = fs.existsSync(usersPath);
+
     let writeUsers = true;
-    if (usersExists) {
+
+    if (exists) {
       writeUsers = await askYesNo(
-        `⚠️  ${usersPath} already exists. Overwrite?`,
+        `[WARN] ${usersPath} exists. Overwrite?`,
         false,
       );
     }
+
     if (writeUsers) {
       fs.writeFileSync(usersPath, output.usersFile, "utf-8");
-      console.log(`✅  Written: ${usersPath}`);
+      logger.ok(`Written ${usersPath}`);
     } else {
-      console.log(`⏭️  Skipped: ${usersPath}`);
+      logger.skip(`Skipped ${usersPath}`);
     }
   }
 
-  console.log(`\n🚀  Done. Next: update URLs and credentials, then run:\n`);
-  console.log(`     npx playwright test --project=setup\n`);
+  logger.info("Done. Next steps:");
+  logger.info("npx playwright test --project=setup");
 }
 
 main().catch((err) => {

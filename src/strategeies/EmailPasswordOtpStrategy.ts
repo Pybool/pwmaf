@@ -1,5 +1,5 @@
 
-import { Browser, BrowserContext } from "@playwright/test";
+import { PWBrowser, PWContext } from "../types";
 import { AuthResult, IAuthStrategy } from "./IAuthStrategy";
 import {
   AuthPageLayout,
@@ -13,7 +13,7 @@ import { OTPResolver } from "../core/OtpResolver";
 
 export class EmailPasswordOTPStrategy implements IAuthStrategy {
   async authenticate(
-  browser: Browser,
+  browser: PWBrowser,
   user: IUser,
   config: IAuthConfig,
 ): Promise<AuthResult> {
@@ -43,9 +43,7 @@ export class EmailPasswordOTPStrategy implements IAuthStrategy {
 
     log(`Resolved loginUrl: ${loginUrl}`);
 
-    // =========================
-    // API PATH
-    // =========================
+ 
     if (user.isApi || config.isApi) {
       log("Entering API auth path");
 
@@ -87,9 +85,7 @@ export class EmailPasswordOTPStrategy implements IAuthStrategy {
       };
     }
 
-    // =========================
-    // BROWSER PATH
-    // =========================
+
     log("Entering browser auth path");
 
     const overrides = config.selectors;
@@ -129,9 +125,6 @@ export class EmailPasswordOTPStrategy implements IAuthStrategy {
 
     log("Navigation complete");
 
-    // =========================
-    // LOGIN FLOW
-    // =========================
     if (authPageLayout === "single-page") {
       log("Single-page login flow");
 
@@ -171,9 +164,6 @@ export class EmailPasswordOTPStrategy implements IAuthStrategy {
       log("Password submitted");
     }
 
-    // =========================
-    // OTP FLOW
-    // =========================
     log(
       `Waiting for OTP (${otpConfig.mode})`,
     );
@@ -217,9 +207,7 @@ export class EmailPasswordOTPStrategy implements IAuthStrategy {
       log("Auto-submit enabled");
     }
 
-    // =========================
-    // FINAL STEP
-    // =========================
+    
     log(`Waiting for success URL: ${successUrl}`);
 
     await page.waitForURL(successUrl);
@@ -249,12 +237,12 @@ export class EmailPasswordOTPStrategy implements IAuthStrategy {
 }
 
   private async authenticateViaAPI(
-    browser: Browser,
+    browser: PWBrowser,
     user: IUser,
     baseUrl: string,
     config: IAuthConfig,
-  ): Promise<BrowserContext> {
-    // User-level apiConfig takes priority over the base config.
+  ): Promise<PWContext> {
+    // User llevel apiConfig takes priority over the base config.
     const apiConfig = user.apiConfig ?? config.apiConfig ?? { path: "" };
     const fieldMap = apiConfig.fieldMap ?? {};
     const url = `${baseUrl}${apiConfig.path}`;
@@ -264,8 +252,6 @@ export class EmailPasswordOTPStrategy implements IAuthStrategy {
       [fieldMap.password ?? "password"]: user.password,
       ...apiConfig.additionalFields,
     };
-
-    console.log(`[API Auth] POST ${url}`, body);
 
     const context = await browser.newContext();
     const response = await context.request.post(url, {
@@ -300,7 +286,7 @@ export class EmailPasswordOTPStrategy implements IAuthStrategy {
   }
 
   private async applySession(
-    context: BrowserContext,
+    context: PWContext,
     session: AuthSession,
   ): Promise<void> {
     if (session.cookies?.length) {

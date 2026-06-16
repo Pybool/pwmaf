@@ -1,3 +1,5 @@
+import type { Browser, BrowserContext, Page, Locator } from "@playwright/test";
+
 import { IAuthStrategy } from "./strategeies/IAuthStrategy";
 
 export type AuthMode = "single" | "multi";
@@ -170,3 +172,9 @@ export interface EnrichedStorageState {
   origins: unknown[];
   metadata: StorageStateMetadata;
 }
+
+
+export type PWBrowser = Browser;
+export type PWContext = BrowserContext;
+export type PWPage = Page;
+export type PWLocator = Locator;
