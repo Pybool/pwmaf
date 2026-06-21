@@ -2,10 +2,10 @@
   "cookies": [
     {
       "name": "auth_token",
-      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im9pZGMtdXNlckBleGFtcGxlLmNvbSIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzgyMDU3NDY4LCJleHAiOjE3ODIwNjEwNjh9.etljMIGAnl1CytO3Ncjc0WZejWSFX6UVe8R4ovzfFYM",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im9pZGMtdXNlckBleGFtcGxlLmNvbSIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzgyMDYxNDQxLCJleHAiOjE3ODIwNjUwNDF9.zHhHGmAzZVbn8ROCYA9_mgj28gOwljiSiitnU-sc7v0",
       "domain": "localhost",
       "path": "/",
-      "expires": 1782061066.899659,
+      "expires": 1782065039.860095,
       "httpOnly": true,
       "secure": false,
       "sameSite": "Lax"
@@ -17,6 +17,6 @@
     "provider": "okta",
     "mockServerUrl": "http://localhost:3019",
     "username": "oidc-user@example.com",
-    "savedAt": "2026-06-21T15:57:47.600Z"
+    "savedAt": "2026-06-21T17:04:00.186Z"
   }
 }

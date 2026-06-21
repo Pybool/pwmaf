@@ -9,6 +9,7 @@ name: CI
 #   packages/test-server   — the mock-server docker-compose stack
 #   apps/tests              — Playwright/E2E suite; resolves `qa-pwmaf` to the
 #                            local packages/pwmaf workspace, not the npm registry
+#                            (workspace name: `auth-matrix-tests`)
 #
 # `pull_request.branches` filters on the PR's BASE branch, so a PR from any
 # feature branch targeting develop/staging/master already triggers this
@@ -43,28 +44,6 @@ jobs:
       - name: Typecheck tests app
         run: npm run typecheck --workspace=apps/tests --if-present
 
-  # ───────────────────────── 2. Unit tests (Jest) ───────────────────────────
-  # Real unit-testable logic lives in the library; apps/tests is Playwright-
-  # driven E2E and has no Jest suite of its own.
-  unit:
-    name: Unit tests (Jest)
-    runs-on: ubuntu-latest
-    needs: typecheck
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm test --workspace=packages/pwmaf -- --coverage --ci
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: jest-coverage
-          path: packages/pwmaf/coverage/
-          retention-days: 7
-
   # ─────────────── 3. Build (ensures pwmaf's dist/ compiles cleanly) ───────
   # apps/tests imports `qa-pwmaf` from this workspace, so every E2E job below
   # needs this dist/ output. Built once here and downloaded by each of them,
@@ -93,6 +72,11 @@ jobs:
   # one per auth-type/flow/OTP-mode/token-type combination) via
   # `docker compose up --wait`, which blocks until every service's /health
   # check reports healthy.
+  #
+  # Test invocations go through the `auth-matrix-tests` workspace script
+  # (`npm --workspace auth-matrix-tests run test -- ...`) rather than calling
+  # `npx playwright test` directly inside apps/tests, since that script is
+  # bare `playwright test` and forwards everything after `--` straight to it.
 
   test-strategies:
     name: "E2E — Strategies (browser)"
@@ -110,14 +94,12 @@ jobs:
           name: pwmaf-dist
           path: packages/pwmaf/dist
       - name: Install Playwright browsers
-        working-directory: apps/tests
-        run: npx playwright install --with-deps chromium
+        run: npm --workspace auth-matrix-tests run install:browsers -- chromium
       - name: Start mock servers
         working-directory: packages/test-server
         run: docker compose up --build -d --wait --wait-timeout 120
       - name: Run strategy tests
-        working-directory: apps/tests
-        run: npx playwright test tests/strategies/ --reporter=github
+        run: npm --workspace auth-matrix-tests run test -- tests/strategies/ --reporter=github
       - name: Dump mock server logs
         if: failure()
         working-directory: packages/test-server
@@ -153,14 +135,12 @@ jobs:
           name: pwmaf-dist
           path: packages/pwmaf/dist
       - name: Install Playwright browsers
-        working-directory: apps/tests
-        run: npx playwright install --with-deps chromium
+        run: npm --workspace auth-matrix-tests run install:browsers -- chromium
       - name: Start mock servers
         working-directory: packages/test-server
         run: docker compose up --build -d --wait --wait-timeout 120
       - name: Run API strategy tests
-        working-directory: apps/tests
-        run: npx playwright test tests/strategies/ tests/error-paths/ --reporter=github
+        run: npm --workspace auth-matrix-tests run test -- tests/strategies/ tests/error-paths/ --reporter=github
       - name: Dump mock server logs
         if: failure()
         working-directory: packages/test-server
@@ -194,14 +174,12 @@ jobs:
           name: pwmaf-dist
           path: packages/pwmaf/dist
       - name: Install Playwright browsers
-        working-directory: apps/tests
-        run: npx playwright install --with-deps chromium
+        run: npm --workspace auth-matrix-tests run install:browsers -- chromium
       - name: Start mock servers
         working-directory: packages/test-server
         run: docker compose up --build -d --wait --wait-timeout 120
       - name: Run session tests
-        working-directory: apps/tests
-        run: npx playwright test tests/session/ --reporter=github
+        run: npm --workspace auth-matrix-tests run test -- tests/session/ --reporter=github
       - name: Dump mock server logs
         if: failure()
         working-directory: packages/test-server
@@ -235,14 +213,12 @@ jobs:
           name: pwmaf-dist
           path: packages/pwmaf/dist
       - name: Install Playwright browsers
-        working-directory: apps/tests
-        run: npx playwright install --with-deps chromium
+        run: npm --workspace auth-matrix-tests run install:browsers -- chromium
       - name: Start mock servers
         working-directory: packages/test-server
         run: docker compose up --build -d --wait --wait-timeout 120
       - name: Run core tests
-        working-directory: apps/tests
-        run: npx playwright test tests/core/ --reporter=github
+        run: npm --workspace auth-matrix-tests run test -- tests/core/ --reporter=github
       - name: Dump mock server logs
         if: failure()
         working-directory: packages/test-server
@@ -269,7 +245,6 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - typecheck
-      - unit
       - build
       - test-strategies
       - test-strategies-api

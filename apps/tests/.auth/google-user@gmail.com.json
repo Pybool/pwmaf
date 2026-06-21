@@ -2,10 +2,10 @@
   "cookies": [
     {
       "name": "auth_token",
-      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Imdvb2dsZS11c2VyQGdtYWlsLmNvbSIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc4MjA1NzQ2OCwiZXhwIjoxNzgyMDYxMDY4fQ.uDACrtVLer-F5zJCIS00MnSXDWx80LPQRFg1To7eGFw",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Imdvb2dsZS11c2VyQGdtYWlsLmNvbSIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc4MjA2MTQ0MSwiZXhwIjoxNzgyMDY1MDQxfQ.2hgoFVB3iRXtbjSeYAUsIS2MWAtuCL4nYE-ugqTjaQk",
       "domain": "localhost",
       "path": "/",
-      "expires": 1782061066.857824,
+      "expires": 1782065039.757276,
       "httpOnly": true,
       "secure": false,
       "sameSite": "Lax"
@@ -17,6 +17,6 @@
     "provider": "google",
     "mockServerUrl": "http://localhost:3009",
     "username": "google-user@gmail.com",
-    "savedAt": "2026-06-21T15:57:47.472Z"
+    "savedAt": "2026-06-21T17:04:00.145Z"
   }
 }

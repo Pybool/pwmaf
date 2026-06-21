@@ -2,10 +2,10 @@
   "cookies": [
     {
       "name": "auth_token",
-      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InNhbWwtdXNlckBleGFtcGxlLmNvbSIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzgyMDU3NDY3LCJleHAiOjE3ODIwNjEwNjd9.9YqZYmfpRp61zgzHh92HZcWqVRnxysnZkh_X73tpzaI",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InNhbWwtdXNlckBleGFtcGxlLmNvbSIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzgyMDYxNDQxLCJleHAiOjE3ODIwNjUwNDF9.8fJdaKcgvwEsm71cvhwGFbFLQIJhhrrVkKziOhexl-k",
       "domain": "localhost",
       "path": "/",
-      "expires": 1782061065.496339,
+      "expires": 1782065039.372823,
       "httpOnly": true,
       "secure": false,
       "sameSite": "Lax"
@@ -18,6 +18,6 @@
     "mockServerUrl": "http://localhost:3020",
     "acsUrl": "http://localhost:3020/auth/saml/callback",
     "username": "saml-user@example.com",
-    "savedAt": "2026-06-21T15:57:46.430Z"
+    "savedAt": "2026-06-21T17:03:59.654Z"
   }
 }
