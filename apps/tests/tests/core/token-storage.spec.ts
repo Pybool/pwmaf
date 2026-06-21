@@ -348,17 +348,6 @@ test.describe("§3 AuthManager.getContext() — token injection", () => {
     );
     writeSessionFile("ls-bearer@example.com", state);
 
-    const config = {
-      ...authConfig,
-      tokenStorageConfig: {
-        storageType: "localStorage" as const,
-        storageKey: "user",
-        tokenPath: "accessToken",
-        origin: ORIGIN,
-        attachBearer: true,
-      },
-    };
-
     // Patch the authManager's config to include tokenStorageConfig
     // (In real usage this comes from base.config.ts; here we test the mechanism directly)
     const ctx = await authManager.getContext("ls-bearer@example.com", browser);
