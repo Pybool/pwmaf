@@ -1,0 +1,523 @@
+[
+  {
+    "username": "user@test.com",
+    "password": "password123",
+    "role": "user",
+    "authType": "email-password",
+    "isApi": true,
+    "actionUrl": "http://localhost:3001",
+    "apiConfig": {
+      "path": "/auth/login",
+      "fieldMap": {
+        "username": "email",
+        "password": "password"
+      },
+      "tokenType": "cookie"
+    }
+  },
+  {
+    "username": "admin@test.com",
+    "password": "admin123",
+    "role": "admin",
+    "authType": "email-password",
+    "isApi": true,
+    "actionUrl": "http://localhost:3001",
+    "apiConfig": {
+      "path": "/auth/login",
+      "fieldMap": {
+        "username": "email",
+        "password": "password"
+      },
+      "tokenType": "cookie"
+    }
+  },
+  {
+    "username": "otp-user@test.com",
+    "role": "user",
+    "authType": "email-otp",
+    "isApi": true,
+    "actionUrl": "http://localhost:3003",
+    "otpConfig": {
+      "mode": "single-input",
+      "strategy": "single-input",
+      "autoSubmit": false,
+      "source": "api-request",
+      "requestConfig": {
+        "baseUrl": "http://localhost:3003",
+        "path": "/auth/request-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}"
+        },
+        "responsePath": "otp"
+      },
+      "verifyConfig": {
+        "baseUrl": "http://localhost:3003",
+        "path": "/auth/verify-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}",
+          "otp": "{otp}"
+        },
+        "accessTokenPath": "data.accessToken"
+      }
+    }
+  },
+  {
+    "username": "otp-admin@test.com",
+    "role": "admin",
+    "authType": "email-otp",
+    "authPageLayout": "progressive-reveal",
+    "isApi": true,
+    "actionUrl": "http://localhost:3004",
+    "otpConfig": {
+      "mode": "single-input",
+      "strategy": "single-input",
+      "autoSubmit": false,
+      "source": "api-request",
+      "requestConfig": {
+        "baseUrl": "http://localhost:3004",
+        "path": "/auth/request-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}"
+        },
+        "responsePath": "otp"
+      },
+      "verifyConfig": {
+        "baseUrl": "http://localhost:3004",
+        "path": "/auth/verify-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}",
+          "otp": "{otp}"
+        },
+        "accessTokenPath": "data.accessToken"
+      }
+    }
+  },
+  {
+    "username": "hybrid-user@test.com",
+    "password": "password123",
+    "role": "user",
+    "authType": "email-password-otp",
+    "isApi": true,
+    "actionUrl": "http://localhost:3005",
+    "apiConfig": {
+      "path": "/auth/login",
+      "fieldMap": {
+        "username": "email",
+        "password": "password"
+      },
+      "additionalFields": {},
+      "headers": {},
+      "tokenType": "cookie",
+      "tokenPath": "",
+      "tokenHeaderName": ""
+    },
+    "otpConfig": {
+      "mode": "single-input",
+      "strategy": "single-input",
+      "autoSubmit": false,
+      "source": "api-request",
+      "requestConfig": {
+        "baseUrl": "http://localhost:3005",
+        "path": "/auth/request-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}"
+        },
+        "responsePath": "otp"
+      },
+      "verifyConfig": {
+        "baseUrl": "http://localhost:3005",
+        "path": "/auth/verify-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}",
+          "otp": "{otp}"
+        },
+        "accessTokenPath": "data.accessToken"
+      }
+    }
+  },
+  {
+    "username": "bearer-user@test.com",
+    "password": "password123",
+    "role": "user",
+    "authType": "email-password",
+    "isApi": true,
+    "actionUrl": "http://localhost:3007",
+    "apiConfig": {
+      "path": "/auth/login",
+      "fieldMap": {
+        "username": "email",
+        "password": "password"
+      },
+      "tokenType": "bearer",
+      "tokenPath": "accessToken"
+    }
+  },
+  {
+    "username": "header-user@test.com",
+    "password": "password123",
+    "role": "user",
+    "authType": "email-password",
+    "isApi": true,
+    "actionUrl": "http://localhost:3008",
+    "apiConfig": {
+      "path": "/auth/login",
+      "fieldMap": {
+        "username": "email",
+        "password": "password"
+      },
+      "tokenType": "custom-header",
+      "tokenPath": "X-Auth-Token",
+      "tokenHeaderName": "X-Auth-Token"
+    }
+  },
+  {
+    "username": "otp-sp-page@test.com",
+    "role": "user",
+    "authType": "email-otp",
+    "authPageLayout": "single-page",
+    "isApi": true,
+    "actionUrl": "http://localhost:3010",
+    "otpConfig": {
+      "mode": "single-input",
+      "strategy": "single-input",
+      "autoSubmit": false,
+      "source": "api-request",
+      "requestConfig": {
+        "baseUrl": "http://localhost:3010",
+        "path": "/auth/request-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}"
+        },
+        "responsePath": "otp"
+      },
+      "verifyConfig": {
+        "baseUrl": "http://localhost:3010",
+        "path": "/auth/verify-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}",
+          "otp": "{otp}"
+        },
+        "accessTokenPath": "data.accessToken"
+      }
+    }
+  },
+  {
+    "username": "otp-sp-multi@test.com",
+    "role": "user",
+    "authType": "email-otp",
+    "authPageLayout": "single-page",
+    "isApi": true,
+    "actionUrl": "http://localhost:3011",
+    "otpConfig": {
+      "mode": "segmented",
+      "strategy": "single-input",
+      "autoSubmit": false,
+      "source": "api-request",
+      "requestConfig": {
+        "baseUrl": "http://localhost:3011",
+        "path": "/auth/request-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}"
+        },
+        "responsePath": "otp"
+      },
+      "verifyConfig": {
+        "baseUrl": "http://localhost:3011",
+        "path": "/auth/verify-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}",
+          "otp": "{otp}"
+        },
+        "accessTokenPath": "data.accessToken"
+      }
+    }
+  },
+  {
+    "username": "otp-ef-page@test.com",
+    "role": "user",
+    "authType": "email-otp",
+    "authPageLayout": "progressive-reveal",
+    "isApi": true,
+    "actionUrl": "http://localhost:3012",
+    "otpConfig": {
+      "mode": "single-input",
+      "strategy": "single-input",
+      "autoSubmit": false,
+      "source": "api-request",
+      "requestConfig": {
+        "baseUrl": "http://localhost:3012",
+        "path": "/auth/request-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}"
+        },
+        "responsePath": "otp"
+      },
+      "verifyConfig": {
+        "baseUrl": "http://localhost:3012",
+        "path": "/auth/verify-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}",
+          "otp": "{otp}"
+        },
+        "accessTokenPath": "data.accessToken"
+      }
+    }
+  },
+  {
+    "username": "otp-ef-multi@test.com",
+    "role": "user",
+    "authType": "email-otp",
+    "authPageLayout": "progressive-reveal",
+    "isApi": true,
+    "actionUrl": "http://localhost:3013",
+    "otpConfig": {
+      "mode": "segmented",
+      "strategy": "single-input",
+      "autoSubmit": false,
+      "source": "api-request",
+      "requestConfig": {
+        "baseUrl": "http://localhost:3013",
+        "path": "/auth/request-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}"
+        },
+        "responsePath": "otp"
+      },
+      "verifyConfig": {
+        "baseUrl": "http://localhost:3013",
+        "path": "/auth/verify-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}",
+          "otp": "{otp}"
+        },
+        "accessTokenPath": "data.accessToken"
+      }
+    }
+  },
+  {
+    "username": "hybrid-admin@test.com",
+    "role": "admin",
+    "authType": "email-password-otp",
+    "authPageLayout": "progressive-reveal",
+    "password": "admin123",
+    "actionUrl": "http://localhost:3006",
+    "otpConfig": {
+      "mode": "single-input",
+      "source": "api-request",
+      "autoSubmit": false,
+      "requestConfig": {
+        "baseUrl": "http://localhost:3006",
+        "path": "/auth/request-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}"
+        },
+        "responsePath": "otp"
+      },
+      "verifyConfig": {
+        "baseUrl": "http://localhost:3006",
+        "path": "/auth/verify-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}",
+          "otp": "{otp}"
+        },
+        "accessTokenPath": "data.accessToken"
+      }
+    }
+  },
+  {
+    "username": "hybrid-sp-page@test.com",
+    "role": "user",
+    "authType": "email-password-otp",
+    "authPageLayout": "single-page",
+    "password": "password123",
+    "actionUrl": "http://localhost:3014",
+    "otpConfig": {
+      "mode": "single-input",
+      "otpPageUrl": "**step=otp**",
+      "source": "api-request",
+      "autoSubmit": false,
+      "requestConfig": {
+        "baseUrl": "http://localhost:3014",
+        "path": "/auth/request-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}"
+        },
+        "responsePath": "otp"
+      },
+      "verifyConfig": {
+        "baseUrl": "http://localhost:3014",
+        "path": "/auth/verify-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}",
+          "otp": "{otp}"
+        },
+        "accessTokenPath": "data.accessToken"
+      }
+    }
+  },
+  {
+    "username": "hybrid-ef-page@test.com",
+    "role": "user",
+    "authType": "email-password-otp",
+    "authPageLayout": "progressive-reveal",
+    "password": "password123",
+    "actionUrl": "http://localhost:3016",
+    "otpConfig": {
+      "mode": "single-input",
+      "otpPageUrl": "**step=otp**",
+      "source": "api-request",
+      "autoSubmit": false,
+      "requestConfig": {
+        "baseUrl": "http://localhost:3016",
+        "path": "/auth/request-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}"
+        },
+        "responsePath": "otp"
+      },
+      "verifyConfig": {
+        "baseUrl": "http://localhost:3016",
+        "path": "/auth/verify-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}",
+          "otp": "{otp}"
+        },
+        "accessTokenPath": "data.accessToken"
+      }
+    }
+  },
+  {
+    "username": "hybrid-sp-multi@test.com",
+    "role": "user",
+    "authType": "email-password-otp",
+    "authPageLayout": "single-page",
+    "password": "password123",
+    "actionUrl": "http://localhost:3015",
+    "otpConfig": {
+      "mode": "segmented",
+      "fieldCount": 6,
+      "source": "api-request",
+      "autoSubmit": false,
+      "requestConfig": {
+        "baseUrl": "http://localhost:3015",
+        "path": "/auth/request-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}"
+        },
+        "responsePath": "otp"
+      },
+      "verifyConfig": {
+        "baseUrl": "http://localhost:3015",
+        "path": "/auth/verify-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}",
+          "otp": "{otp}"
+        },
+        "accessTokenPath": "data.accessToken"
+      }
+    }
+  },
+  {
+    "username": "hybrid-ef-multi@test.com",
+    "role": "user",
+    "authType": "email-password-otp",
+    "authPageLayout": "progressive-reveal",
+    "password": "password123",
+    "actionUrl": "http://localhost:3017",
+    "otpConfig": {
+      "mode": "segmented",
+      "fieldCount": 6,
+      "source": "api-request",
+      "autoSubmit": false,
+      "requestConfig": {
+        "baseUrl": "http://localhost:3017",
+        "path": "/auth/request-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}"
+        },
+        "responsePath": "otp"
+      },
+      "verifyConfig": {
+        "baseUrl": "http://localhost:3017",
+        "path": "/auth/verify-otp",
+        "method": "POST",
+        "headers": {},
+        "queryParams": {},
+        "body": {
+          "email": "{username}",
+          "otp": "{otp}"
+        },
+        "accessTokenPath": "data.accessToken"
+      }
+    }
+  }
+]

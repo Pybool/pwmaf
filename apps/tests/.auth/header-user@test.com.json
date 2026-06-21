@@ -1,0 +1,22 @@
+{
+  "cookies": [
+    {
+      "name": "auth_token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImhlYWRlci11c2VyQHRlc3QuY29tIiwicm9sZSI6InVzZXIiLCJpYXQiOjE3ODIwNjIxOTksImV4cCI6MTc4MjA2NTc5OX0.e0pqzsj6zjsQMH7zp8PVA8gIq9s9a4UiTErIbcyq-HE",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1782065799,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [],
+  "metadata": {
+    "authType": "email-password",
+    "authPath": "api",
+    "username": "header-user@test.com",
+    "tokenType": "custom-header",
+    "savedAt": "2026-06-21T17:16:40.259Z"
+  }
+}

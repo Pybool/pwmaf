@@ -1,111 +1,19 @@
 {
-  "name": "pwmaf",
-  "version": "0.1.0",
-  "description": "Playwright Multi Auth Framework, zero-config session management for email/password, OTP, OAuth, OIDC, and SAML authentication flows",
-  "author": "Emmanuel Eko <eeko.official@outlook.com>",
-  "license": "MIT",
-  "homepage": "https://github.com/pybool/pwmaf#readme",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/pybool/pwmaf.git"
-  },
-  "bugs": {
-    "url": "https://github.com/pybool/pwmaf/issues"
-  },
-  "keywords": [
-    "playwright",
-    "authentication",
-    "auth",
-    "testing",
-    "e2e",
-    "session",
-    "oauth",
-    "oidc",
-    "saml",
-    "otp",
-    "2fa",
-    "automation",
-    "qa",
-    "sdet",
-    "login",
-    "multi-auth",
-    "storage-state",
-    "global-setup"
+  "name": "pwmaf-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "packages/test-server/*",
+    "apps/*"
   ],
-
-  "main":    "dist/index.js",
-  "module":  "dist/index.mjs",
-  "types":   "dist/index.d.ts",
-
-  "exports": {
-    ".": {
-      "import":  "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types":   "./dist/index.d.ts"
-    },
-    "./config": {
-      "import":  "./dist/configs/index.mjs",
-      "require": "./dist/configs/index.js",
-      "types":   "./dist/configs/index.d.ts"
-    },
-    "./types": {
-      "import":  "./dist/types.mjs",
-      "require": "./dist/types.js",
-      "types":   "./dist/types.d.ts"
-    }
-  },
-
-  "bin": {
-    "pwmaf": "./dist/cli/init.js"
-  },
-
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE",
-    "CHANGELOG.md"
-  ],
-
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts",
-    "build:watch":   "tsup src/index.ts --format cjs,esm --dts --watch",
-    "clean":         "rimraf dist",
-    "prebuild":      "npm run clean",
-    "typecheck":     "tsc --noEmit",
-    "lint":          "eslint src --ext .ts",
-    "lint:fix":      "eslint src --ext .ts --fix",
-    "test":          "jest",
-    "test:watch":    "jest --watch",
-    "test:coverage": "jest --coverage",
-    "prepublishOnly": "npm run typecheck && npm run build",
-    "release":       "npm run prepublishOnly && npm publish --access public",
-    "release:dry":   "npm run prepublishOnly && npm publish --access public --dry-run"
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "dev:pwmaf": "npm --workspace qa-pwmaf run build:watch",
+    "dev:test-server": "npm --workspace auth-test-app-backend run dev",
+    "dev:e2e": "npm --workspace auth-matrix-tests run test"
   },
-
-  "peerDependencies": {
-    "@playwright/test": ">=1.40.0"
-  },
-  "peerDependenciesMeta": {
-    "@playwright/test": { "optional": false }
-  },
-
-  "dependencies": {},
-
   "devDependencies": {
-    "@playwright/test":          "^1.44.0",
-    "@types/node":               "^20.0.0",
-    "@typescript-eslint/eslint-plugin": "^7.0.0",
-    "@typescript-eslint/parser":        "^7.0.0",
-    "eslint":                    "^8.57.0",
-    "jest":                      "^29.0.0",
-    "rimraf":                    "^5.0.0",
-    "ts-jest":                   "^29.0.0",
-    "tsup":                      "^8.0.0",
-    "typescript":                "^5.4.0"
-  },
-
-  "engines": {
-    "node": ">=18.0.0",
-    "npm":  ">=9.0.0"
+    "@types/node": "^26.0.0"
   }
 }
