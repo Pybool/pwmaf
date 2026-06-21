@@ -1,0 +1,22 @@
+{
+  "cookies": [
+    {
+      "name": "auth_token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Imdvb2dsZS11c2VyQGdtYWlsLmNvbSIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc4MjA2MjIwMiwiZXhwIjoxNzgyMDY1ODAyfQ.FTGH3g88A0aGPz2X4SR2KA0LvaOPMV0or65GAxIPRuE",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1782065801.42002,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [],
+  "metadata": {
+    "authType": "oauth",
+    "provider": "google",
+    "mockServerUrl": "http://localhost:3009",
+    "username": "google-user@gmail.com",
+    "savedAt": "2026-06-21T17:16:41.975Z"
+  }
+}

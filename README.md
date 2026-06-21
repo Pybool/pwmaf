@@ -27,6 +27,7 @@
    - [Selector Overrides — `AuthOverrideSelectors`](#selector-overrides--authoverrideselectors)
    - [OTP Configuration — `IOTPConfig`](#otp-configuration--iotpconfig)
    - [API Auth Configuration — `IAPIAuthConfig`](#api-auth-configuration--iapiauthconfig)
+   - [Token Storage Configuration — `TokenStorageConfig`](#token-storage-configuration--tokenstorageconfig)
 7. [Environment Variables](#environment-variables)
 8. [Users File — `users.json`](#users-file--usersjson)
 9. [Auth Strategies](#auth-strategies)
@@ -410,6 +411,13 @@ export const BASE_CONFIG: IAuthConfig = {
   tokenCookieName: "session",
 
   /**
+   * Custom URL intercept patterns per OAUTH provider.
+   * Only needed if your OAUTH provider's authorize endpoint does not match
+   * the built-in patterns. Keys must be valid OAUTHProvider values.
+   */
+  OAUTHProviderPatterns: undefined,
+
+  /**
    * Custom URL intercept patterns per OIDC provider.
    * Only needed if your OIDC provider's authorize endpoint does not match
    * the built-in patterns. Keys must be valid OIDCProvider values.
@@ -422,6 +430,15 @@ export const BASE_CONFIG: IAuthConfig = {
    * Useful for debugging auth failures. Keep false in production CI runs.
    */
   strategyLoggerActive: false,
+
+  /**
+   * Token storage configuration for apps that persist auth tokens in
+   * localStorage or sessionStorage rather than (or in addition to) cookies.
+   * When set, getContext() extracts the token from the saved session file and
+   * injects it as an HTTP header on every new context it creates.
+   * Can be overridden per-user via IUser.tokenStorageConfig.
+   */
+  tokenStorageConfig: undefined,
 
   /**
    * Legacy field for Google OAuth callback URL.
@@ -510,6 +527,14 @@ interface IUser {
   apiConfig?: IAPIAuthConfig;
 
   /**
+   * Per-user token storage config override.
+   * Takes priority over the root-level tokenStorageConfig when set.
+   * Use when different users store their token under different localStorage or
+   * sessionStorage keys, or in different origins.
+   */
+  tokenStorageConfig?: TokenStorageConfig;
+
+  /**
    * Per-user login URL override.
    * Use when different users must log in through different endpoints —
    * for example, a multi-tenant app where each organisation has its own
@@ -538,6 +563,13 @@ interface AuthOverrideSelectors {
    * Default: "[data-testid='password']"
    */
   passwordField?: string;
+
+  /**
+   * Hidden OTP input — typically a browser-managed field with
+   * autocomplete="one-time-code". Used by the "hidden-input" OTP strategy.
+   * Default: "input[autocomplete='one-time-code']"
+   */
+  otpHiddenField?: string;
 
   /**
    * Single OTP input (e.g. a full 6-digit field).
@@ -641,8 +673,20 @@ interface IOTPConfig {
   mode: "single-input" | "segmented";
 
   /**
+   * The DOM interaction strategy the framework uses to fill the OTP field.
+   * Works in combination with mode:
+   *
+   * "single-input"  — fills a standard visible text input with the full OTP string.
+   * "hidden-input"  — types the OTP character-by-character into a browser-managed
+   *                   hidden input (autocomplete="one-time-code"). Use for apps where
+   *                   the OTP field is not directly visible but reacts to keyboard input.
+   * "multi-input"   — fills each digit box individually. Used when mode is "segmented".
+   */
+  strategy: "single-input" | "hidden-input" | "multi-input";
+
+  /**
    * Number of digit boxes in a segmented OTP field.
-   * Only read when mode is "segmented". Defaults to 6.
+   * Only read when strategy is "multi-input". Defaults to 6.
    */
   fieldCount?: number;
 
@@ -841,6 +885,89 @@ interface IAPIAuthConfig {
 
 ---
 
+### Token Storage Configuration — `TokenStorageConfig`
+
+Used when your application persists auth tokens in `localStorage` or `sessionStorage` instead of (or in addition to) cookies. When `tokenStorageConfig` is set, `AuthManager.getContext()` reads the saved session file, extracts the token, and injects it as an HTTP header on every browser context it creates — so all subsequent requests in that context are automatically authenticated.
+
+```typescript
+interface TokenStorageConfig {
+  /**
+   * Which browser storage the app puts the token in.
+   * "localStorage"   — persisted across browser restarts.
+   * "sessionStorage" — cleared when the tab closes.
+   */
+  storageType: "localStorage" | "sessionStorage";
+
+  /**
+   * The key used in localStorage/sessionStorage.
+   * Example: "user", "app_user", "auth"
+   */
+  storageKey: string;
+
+  /**
+   * Dot-notation path into the parsed JSON value to reach the token.
+   * Example: "accessToken", "auth.accessToken", "data.token"
+   * Leave undefined if the stored value IS the token string directly.
+   */
+  tokenPath?: string;
+
+  /**
+   * The origin the storage entry lives under.
+   * Must exactly match the app's origin: "https://staging.example.com"
+   * Defaults to BASE_SERVER_URL if not set.
+   */
+  origin?: string;
+
+  /**
+   * Header name to inject the token into for API requests.
+   * Defaults to "Authorization".
+   */
+  headerName?: string;
+
+  /**
+   * When true, prepends "Bearer " to the token value.
+   * Only applies when headerName is "Authorization" or not set.
+   * Defaults to true.
+   */
+  attachBearer?: boolean;
+}
+```
+
+**Example — app that stores a JWT in `localStorage` under the key `"user"`:**
+
+```typescript
+// base.config.ts
+export const BASE_CONFIG: IAuthConfig = {
+  // ...
+  tokenStorageConfig: {
+    storageType: "localStorage",
+    storageKey: "user",
+    tokenPath: "accessToken",          // extracts parsed_json.accessToken
+    origin: "https://staging.example.com",
+    attachBearer: true,                // injects "Authorization: Bearer <token>"
+  },
+};
+```
+
+**Per-user override** — useful when different users store tokens under different keys:
+
+```json
+[
+  {
+    "username": "admin@example.com",
+    "tokenStorageConfig": {
+      "storageType": "sessionStorage",
+      "storageKey": "admin_auth",
+      "tokenPath": "data.token"
+    }
+  }
+]
+```
+
+> **sessionStorage note:** Playwright's `storageState()` does not capture sessionStorage by default. `qa-pwmaf` works around this by explicitly snapshotting sessionStorage from every open page at the end of authentication and re-injecting it via `addInitScript` when a context is later loaded. This happens automatically — no extra config is needed.
+
+---
+
 ## Environment Variables
 
 The framework reads the following environment variables. Add them to your `.env` file:
@@ -974,6 +1101,7 @@ export const BASE_CONFIG: IAuthConfig = {
   successUrl: "**/home**",
   otpConfig: {
     mode: "single-input",
+    strategy: "single-input",
     autoSubmit: false,
     source: "api-request",
     requestConfig: {
@@ -1012,6 +1140,7 @@ export const BASE_CONFIG: IAuthConfig = {
   successUrl: "**/dashboard**",
   otpConfig: {
     mode: "segmented",
+    strategy: "multi-input",
     fieldCount: 6,
     autoSubmit: true,
     source: "env",
@@ -1398,11 +1527,47 @@ const authPage = new AuthPage(page, selectors);
 await authPage.fillEmail("user@example.com");
 await authPage.fillPassword("password");
 await authPage.submitPassword();
+
+// Unified OTP fill — strategy drives the DOM interaction:
+// "single-input"  → fills a standard visible text input
+// "hidden-input"  → types into a browser-managed hidden field (autocomplete="one-time-code")
+// "multi-input"   → fills each digit box individually
+await authPage.fillOTP(otp, "single-input");
+await authPage.fillOTP(otp, "hidden-input");
+await authPage.fillOTP(otp, "multi-input", 6);
 ```
 
 ### `isTokenExpired(storage, opts?): boolean`
 
 Checks whether a stored session is expired by inspecting the JWT cookie payload and/or the `savedAt` / `expiresAt` metadata fields.
+
+### `extractToken(state, config, fallbackOrigin?): string | null`
+
+Extracts a token from a saved `EnrichedStorageState` object according to a `TokenStorageConfig`. Supports both `localStorage` and `sessionStorage`. Returns `null` if the token cannot be found.
+
+```typescript
+import { extractToken } from "qa-pwmaf";
+
+const token = extractToken(state, {
+  storageType: "localStorage",
+  storageKey: "user",
+  tokenPath: "accessToken",
+}, "https://staging.example.com");
+```
+
+### `getTokenFromFile(username, storageStatePath, config, fallbackOrigin?): string | null`
+
+Reads a user's saved session file from disk and extracts a token using a `TokenStorageConfig`. Useful in helpers, fixtures, or custom setup code where you need the raw token value.
+
+```typescript
+import { getTokenFromFile } from "qa-pwmaf";
+
+const token = getTokenFromFile("admin@example.com", ".auth", {
+  storageType: "sessionStorage",
+  storageKey: "auth",
+  tokenPath: "data.token",
+});
+```
 
 ### `buildApiUrl(baseUrl, path?): string`
 
@@ -1416,7 +1581,7 @@ Returns the path `.auth/<username>.json`.
 
 ## Type Reference
 
-All types are exported from the root package entry point and from the `qa-pwmaf/types` sub-path export:
+All types are exported from the root package entry point and from the `qa-pwmaf` sub-path export:
 
 ```typescript
 import type {
@@ -1441,11 +1606,14 @@ import type {
   StorageState,
   EnrichedStorageState,
   StorageStateMetadata,
+  TokenStorageType,
+  TokenStorageConfig,
+  otpStrategy,
   PWBrowser,
   PWContext,
   PWPage,
   PWLocator,
-} from "qa-pwmaf/types";
+} from "qa-pwmaf";
 ```
 
 The `IAuthStrategy` interface and `AuthResult` type are exported from the root:
@@ -1472,12 +1640,18 @@ import type { IAuthStrategy, AuthResult } from "qa-pwmaf";
 | OTP from environment variable | ✅ Supported |
 | OTP via network interception | ✅ Supported |
 | OTP via direct API request | ✅ Supported |
+| OTP strategy: single visible input | ✅ Supported |
+| OTP strategy: hidden input (autocomplete="one-time-code") | ✅ Supported |
+| OTP strategy: multi-input digit boxes | ✅ Supported |
 | OAuth 2.0 (Google, GitHub, Microsoft, Facebook) — mock | ✅ Supported |
 | OIDC (Okta, Auth0, Azure AD, Keycloak, Cognito, Ping) — mock | ✅ Supported |
 | SAML (Okta, Azure, OneLogin, Ping, ADFS) | ✅ Supported |
 | Multi-user / multi-role session management | ✅ Supported |
 | Per-user auth type overrides | ✅ Supported |
 | Session persistence (Playwright storageState) | ✅ Supported |
+| sessionStorage capture and restoration | ✅ Supported |
+| Token extraction from localStorage / sessionStorage | ✅ Supported |
+| Automatic header injection from stored token | ✅ Supported |
 | Session expiry detection (JWT + metadata) | ✅ Supported |
 | Automatic re-authentication on expiry | ✅ Supported |
 | Parallel user authentication | ✅ Supported |

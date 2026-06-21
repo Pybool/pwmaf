@@ -1,0 +1,22 @@
+{
+  "cookies": [
+    {
+      "name": "auth_token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im9pZGMtdXNlckBleGFtcGxlLmNvbSIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzgyMDYyMjAyLCJleHAiOjE3ODIwNjU4MDJ9.lmOXo9V3pV3hU4k08BGCBDiU-67i6h1_j6J8OP0L1bM",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1782065801.192977,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [],
+  "metadata": {
+    "authType": "oidc",
+    "provider": "okta",
+    "mockServerUrl": "http://localhost:3019",
+    "username": "oidc-user@example.com",
+    "savedAt": "2026-06-21T17:16:41.832Z"
+  }
+}

@@ -1,0 +1,62 @@
+name: Release
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Triggered only on a push to master (i.e. after a PR from staging merges).
+# This workflow is the deployment gate: npm publish only runs after every
+# check in the CI workflow passes.
+#
+# In the monorepo the publishable package is packages/pwmaf, not the private
+# workspace root — build, publish, and the version tag all target that
+# workspace explicitly.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  gate:
+    name: Verify CI passed on this SHA
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Fail immediately if the CI workflow did not pass on this exact SHA.
+      - name: Check CI status
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.sha }}
+          check-name: "All checks passed"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 10
+
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    needs: gate
+    permissions:
+      contents: write   # needed to push the version tag
+      id-token: write   # needed for npm provenance
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - run: npm ci
+
+      - name: Build pwmaf
+        run: npm run build --workspace=packages/pwmaf
+
+      - name: Publish pwmaf
+        run: npm publish --workspace=packages/pwmaf --access=public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Tag release
+        run: |
+          VERSION=$(node -p "require('./packages/pwmaf/package.json').version")
+          git tag "pwmaf-v${VERSION}"
+          git push origin "pwmaf-v${VERSION}"
