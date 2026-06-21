@@ -1,0 +1,306 @@
+# docker-compose.yml
+#
+# ┌──────┬──────────────────────┬──────────────────────┬──────────────────────────┬───────────────┐
+# │ Port │ AUTH_TYPE            │ AUTH_FLOW            │ OTP_UX_MODE              │ TOKEN_TYPE    │
+# ├──────┼──────────────────────┼──────────────────────┼──────────────────────────┼───────────────┤
+# │ 3001 │ email-password       │ single-page          │ —                        │ cookie        │
+# │ 3002 │ email-password       │ progressive-reveal   │ —                        │ cookie        │
+# │ 3003 │ email-otp            │ single-page          │ single-input             │ cookie        │
+# │ 3004 │ email-otp            │ progressive-reveal   │ single-input             │ cookie        │
+# │ 3005 │ email-password-otp   │ single-page          │ single-input             │ cookie        │
+# │ 3006 │ email-password-otp   │ progressive-reveal   │ single-input             │ cookie        │
+# │ 3007 │ email-password       │ single-page          │ —                        │ bearer        │
+# │ 3008 │ email-password       │ single-page          │ —                        │ custom-header │
+# │ 3009 │ oauth                │ single-page          │ —                        │ cookie        │
+# ├──────┼──────────────────────┼──────────────────────┼──────────────────────────┼───────────────┤
+# │ 3010 │ email-otp            │ single-page          │ redirect-to-new-page     │ cookie        │
+# │ 3011 │ email-otp            │ single-page          │ segmented                │ cookie        │
+# │ 3012 │ email-otp            │ progressive-reveal   │ redirect-to-new-page     │ cookie        │
+# │ 3013 │ email-otp            │ progressive-reveal   │ segmented                │ cookie        │
+# │ 3014 │ email-password-otp   │ single-page          │ redirect-to-new-page     │ cookie        │
+# │ 3015 │ email-password-otp   │ single-page          │ segmented                │ cookie        │
+# │ 3016 │ email-password-otp   │ progressive-reveal   │ redirect-to-new-page     │ cookie        │
+# │ 3017 │ email-password-otp   │ progressive-reveal   │ segmented                │ cookie        │
+# │ 3018 │ email-password       │ single-page          │ —                        │ bearer        │ ← token-storage tests
+# │ 3019 │ oidc                 │ single-page          │ —                        │ cookie        │
+# │ 3020 │ saml                 │ single-page          │ —                        │ cookie        │
+# └──────┴──────────────────────┴──────────────────────┴──────────────────────────┴───────────────┘
+#
+# Every service has a HEALTHCHECK on GET /health so:
+#   docker compose up --wait   blocks until all containers are healthy, and
+#   CI wait-on can poll http-get://localhost:<port>/health before running tests.
+
+x-healthcheck: &default-healthcheck
+  test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:3000/health || exit 1"]
+  interval: 5s
+  timeout: 4s
+  retries: 12
+  start_period: 8s
+
+x-base: &base
+  build:
+    context: .
+    dockerfile: Dockerfile
+  restart: unless-stopped
+
+services:
+
+  auth-ep-single:
+    <<: *base
+    container_name: auth-ep-single
+    ports: ["3001:3000"]
+    environment:
+      AUTH_TYPE: email-password
+      AUTH_FLOW: single-page
+      TOKEN_TYPE: cookie
+      JWT_SECRET: secret-ep-single
+      BASE_URL: http://localhost:3001
+    healthcheck: *default-healthcheck
+
+  auth-ep-first:
+    <<: *base
+    container_name: auth-ep-first
+    ports: ["3002:3000"]
+    environment:
+      AUTH_TYPE: email-password
+      AUTH_FLOW: progressive-reveal
+      TOKEN_TYPE: cookie
+      JWT_SECRET: secret-ep-first
+      BASE_URL: http://localhost:3002
+    healthcheck: *default-healthcheck
+
+  auth-otp-sp-inline:
+    <<: *base
+    container_name: auth-otp-sp-inline
+    ports: ["3003:3000"]
+    environment:
+      AUTH_TYPE: email-otp
+      AUTH_FLOW: single-page
+      OTP_UX_MODE: single-input
+      TOKEN_TYPE: cookie
+      JWT_SECRET: secret-otp-sp-inline
+      BASE_URL: http://localhost:3003
+    healthcheck: *default-healthcheck
+
+  auth-otp-ef-inline:
+    <<: *base
+    container_name: auth-otp-ef-inline
+    ports: ["3004:3000"]
+    environment:
+      AUTH_TYPE: email-otp
+      AUTH_FLOW: progressive-reveal
+      OTP_UX_MODE: single-input
+      TOKEN_TYPE: cookie
+      JWT_SECRET: secret-otp-ef-inline
+      BASE_URL: http://localhost:3004
+    healthcheck: *default-healthcheck
+
+  auth-epotp-sp-inline:
+    <<: *base
+    container_name: auth-epotp-sp-inline
+    ports: ["3005:3000"]
+    environment:
+      AUTH_TYPE: email-password-otp
+      AUTH_FLOW: single-page
+      OTP_UX_MODE: single-input
+      TOKEN_TYPE: cookie
+      JWT_SECRET: secret-epotp-sp-inline
+      BASE_URL: http://localhost:3005
+    healthcheck: *default-healthcheck
+
+  auth-epotp-ef-inline:
+    <<: *base
+    container_name: auth-epotp-ef-inline
+    ports: ["3006:3000"]
+    environment:
+      AUTH_TYPE: email-password-otp
+      AUTH_FLOW: progressive-reveal
+      OTP_UX_MODE: single-input
+      TOKEN_TYPE: cookie
+      JWT_SECRET: secret-epotp-ef-inline
+      BASE_URL: http://localhost:3006
+    healthcheck: *default-healthcheck
+
+  auth-bearer:
+    <<: *base
+    container_name: auth-bearer
+    ports: ["3007:3000"]
+    environment:
+      AUTH_TYPE: email-password
+      AUTH_FLOW: single-page
+      TOKEN_TYPE: bearer
+      JWT_SECRET: secret-bearer
+      BASE_URL: http://localhost:3007
+    healthcheck: *default-healthcheck
+
+  auth-custom-header:
+    <<: *base
+    container_name: auth-custom-header
+    ports: ["3008:3000"]
+    environment:
+      AUTH_TYPE: email-password
+      AUTH_FLOW: single-page
+      TOKEN_TYPE: custom-header
+      CUSTOM_HEADER_NAME: X-Auth-Token
+      JWT_SECRET: secret-custom
+      BASE_URL: http://localhost:3008
+    healthcheck: *default-healthcheck
+
+  auth-oauth-single:
+    <<: *base
+    container_name: auth-oauth-single
+    ports: ["3009:3000"]
+    environment:
+      AUTH_TYPE: oauth
+      AUTH_FLOW: single-page
+      TOKEN_TYPE: cookie
+      JWT_SECRET: secret-oauth-single
+      BASE_URL: http://localhost:3009
+    healthcheck: *default-healthcheck
+
+  auth-otp-sp-page:
+    <<: *base
+    container_name: auth-otp-sp-page
+    ports: ["3010:3000"]
+    environment:
+      AUTH_TYPE: email-otp
+      AUTH_FLOW: single-page
+      OTP_UX_MODE: redirect-to-new-page
+      TOKEN_TYPE: cookie
+      JWT_SECRET: secret-otp-sp-page
+      BASE_URL: http://localhost:3010
+    healthcheck: *default-healthcheck
+
+  auth-otp-sp-multi:
+    <<: *base
+    container_name: auth-otp-sp-multi
+    ports: ["3011:3000"]
+    environment:
+      AUTH_TYPE: email-otp
+      AUTH_FLOW: single-page
+      OTP_UX_MODE: segmented
+      TOKEN_TYPE: cookie
+      JWT_SECRET: secret-otp-sp-multi
+      BASE_URL: http://localhost:3011
+    healthcheck: *default-healthcheck
+
+  auth-otp-ef-page:
+    <<: *base
+    container_name: auth-otp-ef-page
+    ports: ["3012:3000"]
+    environment:
+      AUTH_TYPE: email-otp
+      AUTH_FLOW: progressive-reveal
+      OTP_UX_MODE: redirect-to-new-page
+      TOKEN_TYPE: cookie
+      JWT_SECRET: secret-otp-ef-page
+      BASE_URL: http://localhost:3012
+    healthcheck: *default-healthcheck
+
+  auth-otp-ef-multi:
+    <<: *base
+    container_name: auth-otp-ef-multi
+    ports: ["3013:3000"]
+    environment:
+      AUTH_TYPE: email-otp
+      AUTH_FLOW: progressive-reveal
+      OTP_UX_MODE: segmented
+      TOKEN_TYPE: cookie
+      JWT_SECRET: secret-otp-ef-multi
+      BASE_URL: http://localhost:3013
+    healthcheck: *default-healthcheck
+
+  auth-epotp-sp-page:
+    <<: *base
+    container_name: auth-epotp-sp-page
+    ports: ["3014:3000"]
+    environment:
+      AUTH_TYPE: email-password-otp
+      AUTH_FLOW: single-page
+      OTP_UX_MODE: redirect-to-new-page
+      TOKEN_TYPE: cookie
+      JWT_SECRET: secret-epotp-sp-page
+      BASE_URL: http://localhost:3014
+    healthcheck: *default-healthcheck
+
+  auth-epotp-sp-multi:
+    <<: *base
+    container_name: auth-epotp-sp-multi
+    ports: ["3015:3000"]
+    environment:
+      AUTH_TYPE: email-password-otp
+      AUTH_FLOW: single-page
+      OTP_UX_MODE: segmented
+      TOKEN_TYPE: cookie
+      JWT_SECRET: secret-epotp-sp-multi
+      BASE_URL: http://localhost:3015
+    healthcheck: *default-healthcheck
+
+  auth-epotp-ef-page:
+    <<: *base
+    container_name: auth-epotp-ef-page
+    ports: ["3016:3000"]
+    environment:
+      AUTH_TYPE: email-password-otp
+      AUTH_FLOW: progressive-reveal
+      OTP_UX_MODE: redirect-to-new-page
+      TOKEN_TYPE: cookie
+      JWT_SECRET: secret-epotp-ef-page
+      BASE_URL: http://localhost:3016
+    healthcheck: *default-healthcheck
+
+  auth-epotp-ef-multi:
+    <<: *base
+    container_name: auth-epotp-ef-multi
+    ports: ["3017:3000"]
+    environment:
+      AUTH_TYPE: email-password-otp
+      AUTH_FLOW: progressive-reveal
+      OTP_UX_MODE: segmented
+      TOKEN_TYPE: cookie
+      JWT_SECRET: secret-epotp-ef-multi
+      BASE_URL: http://localhost:3017
+    healthcheck: *default-healthcheck
+
+  # ── Port 3018: bearer server used by token-storage.spec.ts ───────────────
+  # token-storage tests plant a fake session file with a localStorage entry
+  # containing a JWT, then call AuthManager.getContext() which extracts the
+  # token and injects it as Authorization: Bearer on the new context.
+  # /api/echo-headers lets the test verify the header was actually set.
+  # /api/me validates the bearer token so integration assertions can confirm
+  # the context is fully usable after header injection.
+  auth-token-storage:
+    <<: *base
+    container_name: auth-token-storage
+    ports: ["3018:3000"]
+    environment:
+      AUTH_TYPE: email-password
+      AUTH_FLOW: single-page
+      TOKEN_TYPE: bearer
+      JWT_SECRET: secret-token-storage
+      BASE_URL: http://localhost:3018
+    healthcheck: *default-healthcheck
+
+  auth-oidc-single:
+    <<: *base
+    container_name: auth-oidc-single
+    ports: ["3019:3000"]
+    environment:
+      AUTH_TYPE: oidc
+      AUTH_FLOW: single-page
+      TOKEN_TYPE: cookie
+      JWT_SECRET: secret-oidc-single
+      BASE_URL: http://localhost:3019
+    healthcheck: *default-healthcheck
+
+  auth-saml-single:
+    <<: *base
+    container_name: auth-saml-single
+    ports: ["3020:3000"]
+    environment:
+      AUTH_TYPE: saml
+      AUTH_FLOW: single-page
+      TOKEN_TYPE: cookie
+      JWT_SECRET: secret-saml-single
+      BASE_URL: http://localhost:3020
+    healthcheck: *default-healthcheck

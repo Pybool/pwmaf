@@ -1,0 +1,23 @@
+{
+  "cookies": [
+    {
+      "name": "auth_token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InNhbWwtdXNlckBleGFtcGxlLmNvbSIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzgyMDU3NDY3LCJleHAiOjE3ODIwNjEwNjd9.9YqZYmfpRp61zgzHh92HZcWqVRnxysnZkh_X73tpzaI",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1782061065.496339,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [],
+  "metadata": {
+    "authType": "saml",
+    "provider": "unknown",
+    "mockServerUrl": "http://localhost:3020",
+    "acsUrl": "http://localhost:3020/auth/saml/callback",
+    "username": "saml-user@example.com",
+    "savedAt": "2026-06-21T15:57:46.430Z"
+  }
+}

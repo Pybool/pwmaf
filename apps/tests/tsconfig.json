@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+
+    "baseUrl": ".",
+    "types": ["node"],
+  },
+
+  "include": [
+    "tests/**/*.ts",
+    "**/*.ts"
+, "base.config.js"  ]
+}

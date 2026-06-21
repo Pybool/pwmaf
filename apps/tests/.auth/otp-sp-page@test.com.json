@@ -1,0 +1,22 @@
+{
+  "cookies": [
+    {
+      "name": "auth_token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im90cC1zcC1wYWdlQHRlc3QuY29tIiwicm9sZSI6InVzZXIiLCJpYXQiOjE3ODIwNTc0NjYsImV4cCI6MTc4MjA2MTA2Nn0.0LikA4jtzXmZuAWE3BAye_Gn-upmJF_1YOeDuvjVlNQ",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [],
+  "metadata": {
+    "authType": "email-otp",
+    "authPath": "api",
+    "username": "otp-sp-page@test.com",
+    "otpSource": "api-request",
+    "savedAt": "2026-06-21T15:57:45.596Z"
+  }
+}

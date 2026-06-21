@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: #080808;
+      color: #f0f0f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 12px;
+      padding: 40px;
+      width: 100%;
+      max-width: 480px;
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 8px; color: #DBA657; }
+    .subtitle { font-size: 0.875rem; color: #666; margin-bottom: 32px; min-height: 20px; }
+    #user-info { margin-top: 24px; }
+    .field { margin-bottom: 16px; }
+    .label {
+      font-size: 0.7rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+    .value {
+      font-size: 1rem;
+      color: #f0f0f0;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+    #user-role.admin { border-color: #DBA657; color: #DBA657; }
+    #logout-btn {
+      margin-top: 32px;
+      width: 100%;
+      padding: 12px;
+      background: transparent;
+      border: 1px solid #333;
+      border-radius: 8px;
+      color: #888;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    #logout-btn:hover { border-color: #e55; color: #e55; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Dashboard</h1>
+    <p class="subtitle" id="subtitle">Loading...</p>
+
+    <div id="user-info" class="hidden">
+      <div class="field">
+        <div class="label">Email</div>
+        <div class="value" id="user-email"></div>
+      </div>
+      <div class="field">
+        <div class="label">Role</div>
+        <div class="value" id="user-role"></div>
+      </div>
+      <div class="field">
+        <div class="label">Issued at</div>
+        <div class="value" id="user-iat"></div>
+      </div>
+    </div>
+
+    <button id="logout-btn" class="hidden">Sign out</button>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    // Token extracted from URL params — set by OAuth/OIDC/SAML redirects
+    // and by non-cookie login flows. Cookie-based auth needs nothing here.
+    const params       = new URLSearchParams(window.location.search);
+    const urlToken     = params.get("token");
+    const urlTokenType = params.get("tokenType");
+    const urlHeaderName = params.get("headerName") || "X-Auth-Token";
+
+    function buildHeaders() {
+      const headers = {};
+      if (urlToken && urlTokenType === "bearer") {
+        headers["Authorization"] = `Bearer ${urlToken}`;
+      } else if (urlToken && urlTokenType === "custom-header") {
+        headers[urlHeaderName] = urlToken;
+      }
+      return headers;
+    }
+
+    async function loadUser() {
+      try {
+        const res = await fetch("/api/me", {
+          credentials: "include",
+          headers: buildHeaders(),
+        });
+
+        if (!res.ok) {
+          $("subtitle").textContent = "Invalid or expired session. Please sign in again.";
+          $("user-info").classList.add("hidden");
+          return;
+        }
+
+        const { user } = await res.json();
+
+        $("subtitle").textContent   = "You are signed in";
+        $("user-email").textContent = user.email;
+        $("user-role").textContent  = user.role;
+        $("user-iat").textContent   = user.iat
+          ? new Date(user.iat * 1000).toLocaleString()
+          : "—";
+
+        if (user.role === "admin") {
+          $("user-role").classList.add("admin");
+        }
+
+        $("user-info").classList.remove("hidden");
+        $("logout-btn").classList.remove("hidden");
+
+      } catch {
+        $("subtitle").textContent = "Invalid or expired session. Please sign in again.";
+      }
+    }
+
+    $("logout-btn").addEventListener("click", async () => {
+      await fetch("/auth/logout", { method: "POST", credentials: "include" });
+      window.location.href = "/";
+    });
+
+    loadUser();
+  </script>
+</body>
+</html>

@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport"
+			content="width=device-width, initial-scale=1.0">
+		<title>Verify Code</title>
+		<style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        font-family: system-ui, sans-serif;
+        background: #080808;
+        color: #f0f0f0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .card {
+        background: #111;
+        border: 1px solid #222;
+        border-radius: 12px;
+        padding: 40px;
+        width: 100%;
+        max-width: 420px;
+      }
+
+      /* ── Header ─────────────────────────────────────────────────────────── */
+      .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.8rem;
+        color: #555;
+        text-decoration: none;
+        margin-bottom: 24px;
+        transition: color 0.15s;
+      }
+      .back-link:hover { color: #888; }
+      .back-link svg { flex-shrink: 0; }
+
+      h1 { font-size: 1.5rem; margin-bottom: 8px; color: #DBA657; }
+
+      .subtitle {
+        font-size: 0.875rem;
+        color: #666;
+        margin-bottom: 32px;
+        line-height: 1.5;
+      }
+
+      .email-badge {
+        display: inline-block;
+        color: #DBA657;
+        font-weight: 500;
+      }
+
+      /* ── OTP inputs ─────────────────────────────────────────────────────── */
+      .field { margin-bottom: 24px; }
+
+      label {
+        display: block;
+        font-size: 0.75rem;
+        color: #888;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      input[type="text"] {
+        width: 100%;
+        padding: 12px 16px;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 8px;
+        color: #f0f0f0;
+        font-size: 1rem;
+        outline: none;
+        transition: border-color 0.2s;
+        letter-spacing: 0.2em;
+        text-align: center;
+      }
+      input[type="text"]:focus { border-color: #DBA657; }
+
+      /* Segmented group */
+      .otp-segmented-group { display: flex; gap: 8px; }
+      .otp-segmented-group input {
+        flex: 1;
+        text-align: center;
+        padding: 12px 4px;
+        font-size: 1.25rem;
+        font-weight: bold;
+        letter-spacing: 0;
+      }
+
+      /* ── Submit button ───────────────────────────────────────────────────── */
+      #submit-btn {
+        width: 100%;
+        padding: 13px;
+        background: #DBA657;
+        color: #080808;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.2s;
+      }
+      #submit-btn:hover:not(:disabled) { opacity: 0.85; }
+      #submit-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+      /* ── Resend row ──────────────────────────────────────────────────────── */
+      .resend-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        margin-top: 20px;
+        font-size: 0.8125rem;
+        color: #555;
+      }
+
+      #resend-btn {
+        background: none;
+        border: none;
+        color: #DBA657;
+        font-size: 0.8125rem;
+        cursor: pointer;
+        padding: 0;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        transition: opacity 0.15s;
+      }
+      #resend-btn:disabled { color: #555; text-decoration: none; cursor: default; opacity: 1; }
+
+      /* ── Error ───────────────────────────────────────────────────────────── */
+      .error {
+        color: #e55;
+        font-size: 0.875rem;
+        margin-top: 12px;
+        min-height: 20px;
+        text-align: center;
+      }
+
+      /* ── Utility ─────────────────────────────────────────────────────────── */
+      .hidden { display: none !important; }
+    </style>
+	</head>
+	<body>
+		<div class="card">
+
+
+			<a class="back-link"
+				href="/"
+				id="back-link">
+				<svg width="14"
+					height="14"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round">
+					<polyline points="15 18 9 12 15 6"></polyline>
+				</svg>
+				Back to sign in
+			</a>
+
+
+			<h1>Check your email</h1>
+
+
+			<p class="subtitle"
+				id="subtitle">
+				We sent a verification code to
+				<br>
+				<span class="email-badge"
+					id="email-display"></span>
+			</p>
+
+
+			<!-- Single text input -->
+			<div class="field"
+				id="single-field">
+				<label for="otp">Verification code</label>
+				<input data-testid="otp"
+					type="text"
+					id="otp"
+					placeholder="000000"
+					maxlength="6"
+					autocomplete="one-time-code"
+					inputmode="numeric">
+			</div>
+
+
+			<!-- Segmented input -->
+			<div class="field hidden"
+				id="segmented-field">
+				<label>Verification code</label>
+				<div class="otp-segmented-group"
+					id="otp-digits">
+					<!-- digit inputs injected by JS so fieldCount is respected -->
+				</div>
+			</div>
+
+
+			<button type="button"
+				id="submit-btn">
+				Verify code
+			</button>
+
+
+			<div class="error"
+				id="error"></div>
+
+
+			<div class="resend-row">
+				Didn't receive it?
+				<button type="button"
+					id="resend-btn">
+					Resend code
+				</button>
+			</div>
+
+
+		</div>
+
+
+		<script>
+			// ─── URL params ──────────────────────────────────────────────────────────
+      const params = new URLSearchParams(window.location.search);
+      const email  = decodeURIComponent(params.get("email") || "");
+
+      // ─── DOM refs ─────────────────────────────────────────────────────────────
+      const $           = (id)  => document.getElementById(id);
+      const setError    = (msg) => { $("error").textContent = msg; };
+      const clearError  = ()    => { $("error").textContent = ""; };
+
+      // ─── State ────────────────────────────────────────────────────────────────
+      let config       = {};
+      let sessionToken = null;
+
+      // ─── Resend cooldown ─────────────────────────────────────────────────────
+      let cooldownTimer = null;
+      const COOLDOWN_SECONDS = 30;
+
+      function startCooldown() {
+        const btn = $("resend-btn");
+        let remaining = COOLDOWN_SECONDS;
+        btn.disabled = true;
+        btn.textContent = `Resend in ${remaining}s`;
+
+        clearInterval(cooldownTimer);
+        cooldownTimer = setInterval(() => {
+          remaining -= 1;
+          if (remaining <= 0) {
+            clearInterval(cooldownTimer);
+            btn.disabled = false;
+            btn.textContent = "Resend code";
+          } else {
+            btn.textContent = `Resend in ${remaining}s`;
+          }
+        }, 1000);
+      }
+
+      // ─── Network ──────────────────────────────────────────────────────────────
+      async function post(url, body) {
+        const headers = { "Content-Type": "application/json" };
+        if (sessionToken && config.tokenType === "bearer")
+          headers["Authorization"] = `Bearer ${sessionToken}`;
+        if (sessionToken && config.tokenType === "custom-header")
+          headers[config.customHeaderName] = sessionToken;
+
+        const res = await fetch(url, {
+          method: "POST",
+          headers,
+          credentials: "include",
+          body: JSON.stringify(body),
+        });
+        return { ok: res.ok, status: res.status, data: await res.json() };
+      }
+
+      function extractToken(data) {
+        if (config.tokenType === "bearer")        sessionToken = data.accessToken;
+        if (config.tokenType === "custom-header") sessionToken = data[config.customHeaderName];
+      }
+
+      function redirect() {
+        if (config.tokenType !== "cookie" && sessionToken) {
+          window.location.href = `/dashboard.html?token=${sessionToken}&tokenType=${config.tokenType}&headerName=${config.customHeaderName || ""}`;
+        } else {
+          window.location.href = "/dashboard.html";
+        }
+      }
+
+      // ─── OTP value reader ─────────────────────────────────────────────────────
+      function getOTPValue() {
+        if (!$("segmented-field").classList.contains("hidden")) {
+          return Array.from(document.querySelectorAll("[data-testid='otp-digit']"))
+            .map((i) => i.value)
+            .join("");
+        }
+        return $("otp").value.trim();
+      }
+
+      // ─── Submit ───────────────────────────────────────────────────────────────
+      async function handleSubmit() {
+        clearError();
+        const otp = getOTPValue();
+
+        if (!otp || otp.length < (config.fieldCount ?? 6)) {
+          setError("Please enter the full verification code.");
+          return;
+        }
+
+        $("submit-btn").disabled = true;
+
+        try {
+          const { ok, data } = await post("/auth/verify-otp", { email, otp });
+          if (!ok) {
+            setError(data.error || "Invalid code. Please try again.");
+            $("submit-btn").disabled = false;
+            return;
+          }
+          extractToken(data);
+          redirect();
+        } catch {
+          setError("Something went wrong. Try again.");
+          $("submit-btn").disabled = false;
+        }
+      }
+
+      // ─── Resend ───────────────────────────────────────────────────────────────
+      $("resend-btn").addEventListener("click", async () => {
+        clearError();
+        try {
+          const { ok, data } = await post("/auth/request-otp", { email });
+          if (!ok) {
+            setError(data.error || "Could not resend code. Try again.");
+            return;
+          }
+          startCooldown();
+        } catch {
+          setError("Something went wrong. Try again.");
+        }
+      });
+
+      // ─── Submit button ────────────────────────────────────────────────────────
+      $("submit-btn").addEventListener("click", handleSubmit);
+
+      // ─── Enter key ────────────────────────────────────────────────────────────
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") handleSubmit();
+      });
+
+      // ─── Build segmented inputs ───────────────────────────────────────────────
+      function buildSegmentedInputs(count) {
+        const container = $("otp-digits");
+        container.innerHTML = "";
+        for (let i = 0; i < count; i++) {
+          const input = document.createElement("input");
+          input.setAttribute("data-testid", "otp-digit");
+          input.setAttribute("type", "text");
+          input.setAttribute("maxlength", "1");
+          input.setAttribute("inputmode", "numeric");
+          container.appendChild(input);
+        }
+
+        // Auto-advance and backspace navigation
+        const inputs = container.querySelectorAll("input");
+        inputs.forEach((input, idx) => {
+          input.addEventListener("input", () => {
+            if (input.value && idx < inputs.length - 1) {
+              inputs[idx + 1].focus();
+            }
+            // autoSubmit: fire when all fields filled
+            if (config.autoSubmit) {
+              const allFilled = Array.from(inputs).every((i) => i.value);
+              if (allFilled) handleSubmit();
+            }
+          });
+          input.addEventListener("keydown", (e) => {
+            if (e.key === "Backspace" && !input.value && idx > 0) {
+              inputs[idx - 1].focus();
+            }
+          });
+          // Allow pasting full OTP into the first box
+          input.addEventListener("paste", (e) => {
+            const pasted = (e.clipboardData || window.clipboardData)
+              .getData("text")
+              .replace(/\D/g, "")
+              .slice(0, count);
+            if (!pasted) return;
+            e.preventDefault();
+            pasted.split("").forEach((ch, i) => {
+              if (inputs[i]) inputs[i].value = ch;
+            });
+            const lastFilled = Math.min(pasted.length, count) - 1;
+            inputs[lastFilled].focus();
+            if (config.autoSubmit && pasted.length === count) handleSubmit();
+          });
+        });
+      }
+
+      // ─── Render based on config ───────────────────────────────────────────────
+      function renderOTPInput() {
+        const mode       = config.otpUxMode ?? "single-input";
+        const fieldCount = config.fieldCount ?? 6;
+
+        if (mode === "segmented") {
+          $("single-field").classList.add("hidden");
+          $("segmented-field").classList.remove("hidden");
+          buildSegmentedInputs(fieldCount);
+          document.querySelector("[data-testid='otp-digit']")?.focus();
+        } else {
+          $("single-field").classList.remove("hidden");
+          $("segmented-field").classList.add("hidden");
+          $("otp").focus();
+
+          // autoSubmit on single-input: watch for full length
+          if (config.autoSubmit) {
+            $("otp").addEventListener("input", () => {
+              if ($("otp").value.length >= fieldCount) handleSubmit();
+            });
+          }
+        }
+      }
+
+      // ─── Init ─────────────────────────────────────────────────────────────────
+      (async () => {
+        // Redirect back to login if no email in URL
+        if (!email) {
+          window.location.href = "/";
+          return;
+        }
+
+        $("email-display").textContent = email;
+        $("back-link").href = "/";
+
+        try {
+          const res = await fetch("/api/config");
+          config = await res.json();
+          renderOTPInput();
+          startCooldown(); // start cooldown on load — code was just requested
+        } catch {
+          $("subtitle").textContent = "Could not load config. Is the server running?";
+        }
+      })();
+		</script>
+	</body>
+</html>

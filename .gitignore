@@ -1,5 +1,6 @@
 .refact/
 .node_modules/
+**/node_modules
 /node_modules
 /dist
 /.pnp
@@ -10,4 +11,4 @@
 !.yarn/releases
 !.yarn/versions
 
-node_modules
+.auth-scratch/"

@@ -1,0 +1,24 @@
+{
+  "cookies": [
+    {
+      "name": "auth_token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Imh5YnJpZC11c2VyQHRlc3QuY29tIiwicm9sZSI6InVzZXIiLCJpYXQiOjE3ODIwNTc0NjYsImV4cCI6MTc4MjA2MTA2Nn0.gblRe6eMVUlNCY6tFs_0RZML0wfVcK57GDR9pm7gGWI",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [],
+  "metadata": {
+    "authType": "email-password-otp",
+    "authPath": "api",
+    "authPageLayout": "single-page",
+    "otpMode": "single-input",
+    "username": "hybrid-user@test.com",
+    "otpSource": "api-request",
+    "savedAt": "2026-06-21T15:57:45.535Z"
+  }
+}

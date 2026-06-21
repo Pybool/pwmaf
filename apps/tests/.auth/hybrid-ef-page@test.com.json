@@ -1,0 +1,24 @@
+{
+  "cookies": [
+    {
+      "name": "auth_token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Imh5YnJpZC1lZi1wYWdlQHRlc3QuY29tIiwicm9sZSI6InVzZXIiLCJpYXQiOjE3ODIwNDE5MzksImV4cCI6MTc4MjA0NTUzOX0.AVUK4cuirLJgpTDAzuwqbym5xucd0fB0y4omUSNTrmI",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1782045540.005526,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [],
+  "metadata": {
+    "authType": "email-password-otp",
+    "authPath": "browser",
+    "authPageLayout": "progressive-reveal",
+    "otpMode": "single-input",
+    "otpSource": "api-request",
+    "username": "hybrid-ef-page@test.com",
+    "savedAt": "2026-06-21T11:39:00.163Z"
+  }
+}
