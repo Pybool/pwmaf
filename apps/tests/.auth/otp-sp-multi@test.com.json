@@ -2,10 +2,10 @@
   "cookies": [
     {
       "name": "auth_token",
-      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im90cC1zcC1tdWx0aUB0ZXN0LmNvbSIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzgyMDYxNDQyLCJleHAiOjE3ODIwNjUwNDJ9.PwjrWlbBuWsQp_QNr26EBlXM8vIHWGzWFjdcknmY84E",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im90cC1zcC1tdWx0aUB0ZXN0LmNvbSIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzgyMDYyMjA0LCJleHAiOjE3ODIwNjU4MDR9.2RMJTrZCvMV4EzXGvyIbFUV9ANrUnGtzs9JTbaDvImg",
       "domain": "localhost",
       "path": "/",
-      "expires": 1782065041.47189,
+      "expires": 1782065803.591291,
       "httpOnly": true,
       "secure": false,
       "sameSite": "Lax"
@@ -17,6 +17,6 @@
     "authPath": "browser",
     "username": "otp-sp-multi@test.com",
     "otpSource": "api-request",
-    "savedAt": "2026-06-21T17:04:01.625Z"
+    "savedAt": "2026-06-21T17:16:43.837Z"
   }
 }

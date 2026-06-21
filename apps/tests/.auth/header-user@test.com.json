@@ -2,10 +2,10 @@
   "cookies": [
     {
       "name": "auth_token",
-      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImhlYWRlci11c2VyQHRlc3QuY29tIiwicm9sZSI6InVzZXIiLCJpYXQiOjE3ODIwNjE0NDAsImV4cCI6MTc4MjA2NTA0MH0.qcwlv1qThknDCHxCcBKs4gds-BuAp5cfXx_ayoy27R0",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImhlYWRlci11c2VyQHRlc3QuY29tIiwicm9sZSI6InVzZXIiLCJpYXQiOjE3ODIwNjIxOTksImV4cCI6MTc4MjA2NTc5OX0.e0pqzsj6zjsQMH7zp8PVA8gIq9s9a4UiTErIbcyq-HE",
       "domain": "localhost",
       "path": "/",
-      "expires": 1782065040,
+      "expires": 1782065799,
       "httpOnly": true,
       "secure": false,
       "sameSite": "Lax"
@@ -17,6 +17,6 @@
     "authPath": "api",
     "username": "header-user@test.com",
     "tokenType": "custom-header",
-    "savedAt": "2026-06-21T17:03:58.650Z"
+    "savedAt": "2026-06-21T17:16:40.259Z"
   }
 }

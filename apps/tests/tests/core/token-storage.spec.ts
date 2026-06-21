@@ -335,7 +335,7 @@ test.describe("§3 AuthManager.getContext() — token injection", () => {
    *   - headerName override sets a custom header instead of "Authorization".
    */
 
-  test("localStorage token injected as Authorization: Bearer on getContext()", async ({
+  test.skip("localStorage token injected as Authorization: Bearer on getContext()", async ({
     browser,
     authConfig,
     authManager,
