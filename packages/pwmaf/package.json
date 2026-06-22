@@ -7,7 +7,7 @@
   "homepage": "https://github.com/pybool/pwmaf#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/pybool/pwmaf.git"
+    "url": "git+https://github.com/Pybool/pwmaf.git"
   },
   "bugs": {
     "url": "https://github.com/pybool/pwmaf/issues"
