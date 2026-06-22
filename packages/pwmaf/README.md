@@ -1,6 +1,6 @@
 # qa-pwmaf — Playwright Multi Auth Framework
 
-> **Config based session management for email/password, OTP, OAuth, OIDC, and SAML authentication flows in Playwright test suites.**
+> **Config-based session management for email/password, OTP, OAuth, OIDC, and SAML authentication flows in Playwright test suites.**
 
 [![npm version](https://img.shields.io/npm/v/qa-pwmaf)](https://www.npmjs.com/package/qa-pwmaf)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -26,6 +26,7 @@
    - [User Reference — `IUser`](#user-reference--iuser)
    - [Selector Overrides — `AuthOverrideSelectors`](#selector-overrides--authoverrideselectors)
    - [OTP Configuration — `IOTPConfig`](#otp-configuration--iotpconfig)
+   - [OIDC Configuration — `IOIDCConfig`](#oidc-configuration--ioidcconfig)
    - [API Auth Configuration — `IAPIAuthConfig`](#api-auth-configuration--iapiauthconfig)
    - [Token Storage Configuration — `TokenStorageConfig`](#token-storage-configuration--tokenstorageconfig)
 7. [Environment Variables](#environment-variables)
@@ -41,14 +42,14 @@
    - [Custom Strategy](#custom-strategy)
 10. [Integrating with Playwright — Global Setup](#integrating-with-playwright--global-setup)
 11. [Using Sessions in Tests](#using-sessions-in-tests)
-12. [Per-User Auth Overrides](#per-user-auth-overrides)
-13. [Session Lifecycle — Events & Reporter](#session-lifecycle--events--reporter)
-14. [API Reference](#api-reference)
-15. [Type Reference](#type-reference)
-16. [What qa-pwmaf Covers](#what-qa-pwmaf-covers)
-17. [What Is Not Yet Supported](#what-is-not-yet-supported)
-18. [Contributing](#contributing)
-19. [Branch Strategy](#branch-strategy)
+12. [Playwright Test Fixtures](#playwright-test-fixtures)
+13. [Per-User Auth Overrides](#per-user-auth-overrides)
+14. [Session Lifecycle — Events & Reporter](#session-lifecycle--events--reporter)
+15. [API Reference](#api-reference)
+16. [Type Reference](#type-reference)
+17. [What qa-pwmaf Covers](#what-qa-pwmaf-covers)
+18. [What Is Not Yet Supported](#what-is-not-yet-supported)
+19. [Contributing](#contributing)
 20. [AI Usage Policy](#ai-usage-policy)
 21. [License](#license)
 
@@ -75,11 +76,12 @@
 | Node.js | ≥ 18.0.0 |
 | npm | ≥ 9.0.0 |
 | `@playwright/test` | ^1.60.0 (peer dependency — you must install this yourself) |
+| `ts-node` | ^10.9.2 (peer dependency — required when using a TypeScript config) |
 
-`ts-node` is required in your project if your config file is written in TypeScript (recommended):
+Both peer dependencies must be installed in your project:
 
 ```bash
-npm install -D ts-node
+npm install -D @playwright/test ts-node
 ```
 
 ---
@@ -97,10 +99,10 @@ yarn add -D qa-pwmaf
 pnpm add -D qa-pwmaf
 ```
 
-Because `@playwright/test` is a peer dependency, install it separately if you have not already:
+Install the required peer dependencies if you have not already:
 
 ```bash
-npm install -D @playwright/test
+npm install -D @playwright/test ts-node
 ```
 
 ---
@@ -135,7 +137,7 @@ import { getOrCreateAuthManager } from "qa-pwmaf";
 
 export default async function globalSetup() {
   const browser = await chromium.launch();
-  const manager = getOrCreateAuthManager();
+  const manager = await getOrCreateAuthManager();
   await manager.setup(browser);
   await browser.close();
 }
@@ -315,7 +317,7 @@ export const BASE_CONFIG: IAuthConfig = {
 
   /**
    * The URL (or glob pattern) the framework waits for after a successful login.
-   * Defaults to "*\/\*\/dashboard**" if not provided.
+   * Defaults to "*\/\/*\/dashboard**" if not provided.
    * Supports Playwright URL glob syntax, e.g. "**/home**" or "https://app.example.com/dashboard"
    */
   successUrl: "**/dashboard**",
@@ -346,8 +348,16 @@ export const BASE_CONFIG: IAuthConfig = {
   /**
    * OIDC provider. Required when authType is "oidc".
    * One of: "okta" | "auth0" | "azure-ad" | "keycloak" | "cognito" | "ping"
+   * Can also be configured via the structured oidcConfig field below.
    */
   oidcProvider: undefined,
+
+  /**
+   * Structured OIDC configuration. Takes priority over the flat oidcProvider field.
+   * Use this when you need to specify additional OIDC parameters beyond just the provider name.
+   * See IOIDCConfig below.
+   */
+  oidcConfig: undefined,
 
   /**
    * SAML provider. Required when authType is "saml".
@@ -411,9 +421,9 @@ export const BASE_CONFIG: IAuthConfig = {
   tokenCookieName: "session",
 
   /**
-   * Custom URL intercept patterns per OAUTH provider.
-   * Only needed if your OAUTH provider's authorize endpoint does not match
-   * the built-in patterns. Keys must be valid OAUTHProvider values.
+   * Custom URL intercept patterns per OAuth provider.
+   * Only needed if your OAuth provider's authorize endpoint does not match
+   * the built-in patterns. Keys must be valid OAuthProvider values.
    */
   OAUTHProviderPatterns: undefined,
 
@@ -492,9 +502,16 @@ interface IUser {
   oauthProvider?: OAuthProvider;
 
   /**
-   * Per-user OIDC provider override.
+   * Per-user OIDC provider override (flat form).
    */
   oidcProvider?: OIDCProvider;
+
+  /**
+   * Per-user structured OIDC configuration. Takes priority over oidcProvider.
+   * Use when this user needs a different mockServerUrl, redirectUri, or other
+   * OIDC parameters from the root-level config.
+   */
+  oidcConfig?: IOIDCConfig;
 
   /**
    * Per-user SAML provider override.
@@ -538,7 +555,7 @@ interface IUser {
    * Per-user login URL override.
    * Use when different users must log in through different endpoints —
    * for example, a multi-tenant app where each organisation has its own
-   * login URL, or an approval flow where users need to visit different pages.
+   * login URL.
    */
   actionUrl?: string;
 }
@@ -579,7 +596,7 @@ interface AuthOverrideSelectors {
 
   /**
    * Selector that matches ALL segmented OTP digit boxes.
-   * The framework calls `.nth(i)` on this locator for each digit.
+   * The framework calls .nth(i) on this locator for each digit.
    * Default: "[data-testid='otp-field']"
    */
   otpMultiFields?: string;
@@ -674,12 +691,10 @@ interface IOTPConfig {
 
   /**
    * The DOM interaction strategy the framework uses to fill the OTP field.
-   * Works in combination with mode:
    *
    * "single-input"  — fills a standard visible text input with the full OTP string.
    * "hidden-input"  — types the OTP character-by-character into a browser-managed
-   *                   hidden input (autocomplete="one-time-code"). Use for apps where
-   *                   the OTP field is not directly visible but reacts to keyboard input.
+   *                   hidden input (autocomplete="one-time-code").
    * "multi-input"   — fills each digit box individually. Used when mode is "segmented".
    */
   strategy: "single-input" | "hidden-input" | "multi-input";
@@ -692,27 +707,21 @@ interface IOTPConfig {
 
   /**
    * Whether the form auto-submits after the last OTP digit is entered.
-   * Set to true for apps that submit automatically, false to click the submit button.
    */
   autoSubmit: boolean;
 
   /**
    * How the framework obtains the OTP value:
    *
-   * "env"            — read from an environment variable (good for static test OTPs
-   *                    in dev/staging environments).
-   * "api-intercept"  — intercept the network response from the OTP send endpoint
-   *                    and capture the OTP from the response body. Requires
-   *                    interceptPattern to be set.
+   * "env"            — read from an environment variable.
+   * "api-intercept"  — intercept the network response from the OTP send endpoint.
    * "api-request"    — proactively call an API to trigger/retrieve the OTP.
-   *                    Requires requestConfig (and optionally verifyConfig) to be set.
    */
   source: "env" | "api-intercept" | "api-request";
 
   /**
    * The URL (or glob) of the OTP entry page. Only read when authPageLayout
-   * is "redirect-to-new-page" and the framework needs to wait for that page.
-   * Example: "**/verify-otp**"
+   * is "redirect-to-new-page". Example: "**/verify-otp**"
    */
   otpPageUrl?: string;
 
@@ -724,21 +733,19 @@ interface IOTPConfig {
 
   /**
    * When source is "api-intercept": the URL pattern to intercept.
-   * The framework routes this pattern through Playwright's page.route() and
-   * captures otp / code / token from the JSON response body.
    * Defaults to "**/api/send-otp**"
    */
   interceptPattern?: string;
 
   /**
    * When source is "api-request": config for the HTTP call that triggers
-   * (or retrieves) the OTP. See IOTPRequestConfig below.
+   * or retrieves the OTP.
    */
   requestConfig?: IOTPRequestConfig;
 
   /**
    * When source is "api-request" and the OTP is verified via a separate
-   * endpoint: config for the verification call. See IOTPVerificationConfig below.
+   * endpoint: config for the verification call.
    */
   verifyConfig?: IOTPVerificationConfig;
 }
@@ -748,9 +755,7 @@ interface IOTPRequestConfig {
   baseUrl: string;
 
   /**
-   * Path of the OTP endpoint. Supports placeholders:
-   * {username} — replaced with the user's username.
-   * {userId}   — also replaced with the user's username (alias).
+   * Path of the OTP endpoint. Supports {username} and {userId} placeholders.
    * Example: "/api/otp/send/{username}"
    */
   path: string;
@@ -758,75 +763,117 @@ interface IOTPRequestConfig {
   /** HTTP method. Defaults to "GET". */
   method?: "GET" | "POST";
 
-  /** Additional headers to include in the request. */
   headers?: Record<string, string>;
 
   /**
    * Query parameters. Values support {username} and {userId} placeholders.
-   * Example: { "email": "{username}" }
    */
   queryParams?: Record<string, string>;
 
   /**
    * Request body for POST requests. Values support {username} and {userId} placeholders.
-   * Example: { "email": "{username}" }
    */
   body?: Record<string, unknown>;
 
   /**
    * Dot-notation path to extract the OTP from the response body.
-   * Example: "data.otp" extracts response.data.otp.
-   * Defaults to "otp".
+   * Example: "data.otp". Defaults to "otp".
    */
   responsePath?: string;
 }
 
 interface IOTPVerificationConfig {
-  /** Base URL of the OTP verification endpoint. */
   baseUrl: string;
 
   /**
-   * Path of the verification endpoint. Supports {username}, {userId}, and {otp} placeholders.
-   * Example: "/api/otp/verify/{otp}"
+   * Path supporting {username}, {userId}, and {otp} placeholders.
    */
   path: string;
 
-  /** HTTP method. Defaults to "GET". */
   method?: "GET" | "POST";
-
   headers?: Record<string, string>;
   queryParams?: Record<string, string>;
 
   /**
    * Request body. Values support {username}, {userId}, and {otp} placeholders.
-   * Example: { "code": "{otp}", "email": "{username}" }
    */
   body?: Record<string, unknown>;
 
-  /**
-   * Dot-notation path to the access token in the verification response.
-   * Defaults to "accessToken".
-   */
+  /** Dot-notation path to the access token in the verification response. Defaults to "accessToken". */
   accessTokenPath?: string;
 
-  /**
-   * Dot-notation path to the refresh token in the verification response.
-   * Defaults to "refreshToken".
-   */
+  /** Dot-notation path to the refresh token in the verification response. Defaults to "refreshToken". */
   refreshTokenPath?: string;
 }
 ```
 
 ---
 
+### OIDC Configuration — `IOIDCConfig`
+
+A structured alternative to the flat `oidcProvider` field. When both are present, `oidcConfig` takes priority. Available on both `IAuthConfig` and `IUser` for per-user overrides.
+
+```typescript
+interface IOIDCConfig {
+  /**
+   * The OIDC provider.
+   * One of: "okta" | "auth0" | "azure-ad" | "keycloak" | "cognito" | "ping"
+   */
+  provider: OIDCProvider;
+
+  /** OAuth2 client ID registered with the provider. */
+  clientId?: string;
+
+  /** OAuth2 client secret. */
+  clientSecret?: string;
+
+  /** Issuer URL of the provider. Example: "https://dev-12345.okta.com" */
+  issuer?: string;
+
+  /**
+   * The callback URL your application is registered to receive the auth code at.
+   * When set, overrides the default "<BASE_SERVER_URL>/auth/oidc/callback".
+   */
+  redirectUri?: string;
+
+  /** OAuth2 scopes to request. Example: "openid profile email" */
+  scope?: string;
+
+  /**
+   * URL of a local mock OIDC server.
+   * When set, overrides BASE_SERVER_URL as the base for the callback URL.
+   */
+  mockServerUrl?: string;
+}
+```
+
+**Example — using `oidcConfig` for a user with a specific mock server:**
+
+```typescript
+// users.json
+[
+  {
+    "username": "sso-user@example.com",
+    "authType": "oidc",
+    "oidcConfig": {
+      "provider": "okta",
+      "mockServerUrl": "http://localhost:3019",
+      "redirectUri": "http://localhost:3019/auth/oidc/callback"
+    }
+  }
+]
+```
+
+---
+
 ### API Auth Configuration — `IAPIAuthConfig`
 
-Used when `isApi: true`. Describes the HTTP login endpoint and how to extract / apply the resulting token.
+Used when `isApi: true`. Describes the HTTP login endpoint and how to extract and apply the resulting token.
 
 ```typescript
 interface IAPIAuthConfig {
   /**
-   * Endpoint path appended to actionUrl (or the user's actionUrl override).
+   * Endpoint path appended to actionUrl.
    * Example: "/api/auth/login"
    * Note: actionUrl must be the API origin only (e.g. "http://localhost:3000")
    * when isApi is true. Do not include the path in actionUrl.
@@ -835,7 +882,6 @@ interface IAPIAuthConfig {
 
   /**
    * Maps your API's field names to the standard "username" and "password" keys.
-   * Only needed when your login endpoint uses non-standard field names.
    * Example: { username: "email", password: "passphrase" }
    */
   fieldMap?: {
@@ -849,28 +895,22 @@ interface IAPIAuthConfig {
    */
   additionalFields?: Record<string, unknown>;
 
-  /**
-   * Additional request headers for the login call.
-   * Example: { "x-api-version": "2" }
-   */
+  /** Additional request headers for the login call. */
   headers?: Record<string, string>;
 
   /**
    * Dot-notation path to the token in the login response body.
    * Only used when tokenType is "bearer" or "custom-header".
-   * Example: "data.token" or "auth.accessToken"
-   * Defaults to "token".
+   * Example: "data.token" or "auth.accessToken". Defaults to "token".
    */
   tokenPath?: string;
 
   /**
    * How the token is applied to subsequent requests in the browser context.
    *
-   * "cookie"        — no token extraction needed; the browser context inherits
-   *                   the session cookie set by the login response.
-   * "bearer"        — the token is extracted and set as "Authorization: Bearer <token>"
-   *                   on all subsequent requests in this context.
-   * "custom-header" — the token is extracted and set as a custom header.
+   * "cookie"        — no token extraction needed; the session cookie is inherited.
+   * "bearer"        — extracted token set as "Authorization: Bearer <token>".
+   * "custom-header" — extracted token set as a custom header.
    *                   Requires tokenHeaderName to also be set.
    */
   tokenType?: "bearer" | "cookie" | "custom-header";
@@ -887,7 +927,7 @@ interface IAPIAuthConfig {
 
 ### Token Storage Configuration — `TokenStorageConfig`
 
-Used when your application persists auth tokens in `localStorage` or `sessionStorage` instead of (or in addition to) cookies. When `tokenStorageConfig` is set, `AuthManager.getContext()` reads the saved session file, extracts the token, and injects it as an HTTP header on every browser context it creates — so all subsequent requests in that context are automatically authenticated.
+Used when your application persists auth tokens in `localStorage` or `sessionStorage` instead of (or in addition to) cookies. When `tokenStorageConfig` is set, `AuthManager.getContext()` reads the saved session file, extracts the token, and injects it as an HTTP header on every browser context it creates.
 
 ```typescript
 interface TokenStorageConfig {
@@ -980,7 +1020,7 @@ The framework reads the following environment variables. Add them to your `.env`
 AUTH_USERS_FILE=src/data/users.json
 
 # Whether API authentication is enabled for this test run.
-# Must be "true" or "false". The framework throws if this is not set.
+# Must be "true" or "false".
 USE_API=false
 
 # ─── OPTIONAL ──────────────────────────────────────────────────────────────────
@@ -990,11 +1030,13 @@ USE_API=false
 # AUTH_TYPE=email-password
 
 # A static OTP value for use when otpConfig.source is "env".
-# Set this in your staging/dev environment where OTPs are predictable.
 # TEST_OTP=123456
+
+# Set to "1" to validate that each user's actionUrl is reachable before setup.
+# VALIDATE_USER_URLS=1
 ```
 
-The `AUTH_USERS_FILE` variable is also the mechanism by which `getOrCreateAuthManager()` finds your users file at runtime without you passing the path explicitly. The framework resolves the path relative to the project root (where `package.json` lives).
+The `AUTH_USERS_FILE` variable is how `getOrCreateAuthManager()` finds your users file at runtime without you passing the path explicitly. The framework resolves the path relative to the project root (where `package.json` lives). If `AUTH_USERS_FILE` is not set, the framework defaults to `src/data/users.json`.
 
 ---
 
@@ -1029,7 +1071,9 @@ Store your test credentials in a JSON array. Each object maps to the `IUser` int
     "username": "sso-user@example.com",
     "role": "user",
     "authType": "oidc",
-    "oidcProvider": "okta"
+    "oidcConfig": {
+      "provider": "okta"
+    }
   }
 ]
 ```
@@ -1168,7 +1212,7 @@ export const BASE_CONFIG: IAuthConfig = {
   oauthProvider: "google",
   successUrl: "**/dashboard**",
   storageStatePath: ".auth",
-  BASE_SERVER_URL: "http://localhost:3000",  // used to construct the mock callback URL
+  BASE_SERVER_URL: "http://localhost:3000",
   selectors: {
     googleOAuthButton: "button:has-text('Sign in with Google')",
   },
@@ -1182,11 +1226,15 @@ export const BASE_CONFIG: IAuthConfig = {
 
 The OIDC strategy intercepts your provider's `/authorize` request and immediately returns a mock `code` to your application's callback endpoint. Supported providers: `"okta"`, `"auth0"`, `"azure-ad"`, `"keycloak"`, `"cognito"`, `"ping"`.
 
+You can configure the provider via the flat `oidcProvider` field or the structured `oidcConfig` field — `oidcConfig` takes priority when both are present.
+
 ```typescript
 export const BASE_CONFIG: IAuthConfig = {
   actionUrl: "http://localhost:3000/login",
   authType: "oidc",
-  oidcProvider: "okta",
+  oidcProvider: "okta",  // flat form
+  // OR use structured form:
+  // oidcConfig: { provider: "okta", mockServerUrl: "http://localhost:3019" },
   successUrl: "**/dashboard**",
   storageStatePath: ".auth",
   BASE_SERVER_URL: "http://localhost:3009",
@@ -1287,7 +1335,7 @@ import { getOrCreateAuthManager } from "qa-pwmaf";
 
 export default async function globalSetup(config: FullConfig) {
   const browser = await chromium.launch();
-  const manager = getOrCreateAuthManager();
+  const manager = await getOrCreateAuthManager();
   await manager.setup(browser);
   await browser.close();
 }
@@ -1304,12 +1352,10 @@ export default defineConfig({
 
   use: {
     // Apply the default user session to all tests.
-    // This file is created during globalSetup.
     storageState: ".auth/user@example.com.json",
   },
 
   projects: [
-    // If you need per-role test projects:
     {
       name: "admin",
       use: {
@@ -1355,16 +1401,14 @@ import { test, expect } from "@playwright/test";
 import { getOrCreateAuthManager } from "qa-pwmaf";
 
 test("approval flow across two users", async ({ browser }) => {
-  const manager = getOrCreateAuthManager();
+  const manager = await getOrCreateAuthManager();
 
-  // Create a context for the admin
   const adminContext = await manager.getContext("admin@example.com", browser);
   const adminPage = await adminContext.newPage();
   await adminPage.goto("/admin/approvals");
   await adminPage.locator("#approve-btn").click();
   await adminContext.close();
 
-  // Create a context for the regular user
   const userContext = await manager.getContext("user@example.com", browser);
   const userPage = await userContext.newPage();
   await userPage.goto("/notifications");
@@ -1379,7 +1423,7 @@ test("approval flow across two users", async ({ browser }) => {
 import { getOrCreateAuthManager } from "qa-pwmaf";
 
 // In a custom fixture or a beforeAll hook:
-const manager = getOrCreateAuthManager();
+const manager = await getOrCreateAuthManager();
 const session = await manager.readSession("admin@example.com");
 // readSession automatically re-authenticates if the session is expired.
 ```
@@ -1403,6 +1447,38 @@ import { ensureValidSession } from "qa-pwmaf";
 // If expired or missing, triggers re-authentication.
 await ensureValidSession("admin@example.com", browser);
 ```
+
+---
+
+## Playwright Test Fixtures
+
+`qa-pwmaf` exports a Playwright `test` object pre-extended with auth fixtures. Import it in place of the standard `@playwright/test` `test` for access to auth-aware helpers in every test:
+
+```typescript
+import { test, expect } from "qa-pwmaf/fixtures"; // or from "qa-pwmaf"
+```
+
+The extended `test` provides these additional fixtures:
+
+| Fixture | Type | Description |
+|---|---|---|
+| `authManager` | `AuthManager` | The singleton `AuthManager` instance, already initialized. |
+| `authConfig` | `IAuthConfig` | The loaded and merged configuration. |
+| `getUserConfig` | `(username: string) => IAuthConfig` | Returns the merged effective config for a specific user (root config + user-level overrides). |
+| `getContext` | `(username: string) => Promise<BrowserContext>` | Creates a browser context pre-loaded with the saved session for the given user. Contexts created via this fixture are automatically closed after the test. |
+
+```typescript
+import { test, expect } from "qa-pwmaf";
+
+test("admin sees management panel", async ({ getContext }) => {
+  const ctx = await getContext("admin@example.com");
+  const page = await ctx.newPage();
+  await page.goto("/admin");
+  await expect(page.locator("h1")).toContainText("Management");
+});
+```
+
+> **Note:** The `getContext` fixture handles automatic context teardown. Prefer it over calling `authManager.getContext()` directly inside test bodies.
 
 ---
 
@@ -1471,7 +1547,7 @@ authEvents.on("session:failed", ({ filePath, error }) => {
 
 ### Using `AuthReporter`
 
-`AuthReporter` is a convenience class that attaches listeners for all events and stores structured logs for later retrieval:
+`AuthReporter` is a convenience class that attaches listeners for all events and stores structured log entries for later retrieval:
 
 ```typescript
 import { AuthReporter } from "qa-pwmaf";
@@ -1490,26 +1566,41 @@ reporter.clear();  // reset logs between test runs
 
 ## API Reference
 
-### `getOrCreateAuthManager(): AuthManager`
+### `getOrCreateAuthManager(): Promise<AuthManager>`
 
-Returns the singleton `AuthManager` instance for the current process. Creates it on the first call by reading `AUTH_USERS_FILE` from the environment and loading `base.config.ts` from the project root. Subsequent calls return the same instance.
+Returns a promise that resolves to the singleton `AuthManager` instance for the current process. On the first call it reads `AUTH_USERS_FILE` from the environment, loads `base.config.ts` from the project root, runs config validation, optionally clears the auth store if `deleteAuthStorageOnTestRun` is set, and creates the instance. Subsequent calls return the same instance without re-reading config.
+
+```typescript
+const manager = await getOrCreateAuthManager();
+```
 
 ### `AuthManager`
 
 | Method | Signature | Description |
 |---|---|---|
 | `setup` | `(browser: PWBrowser) => Promise<void>` | Authenticates all configured users and saves their sessions to disk. Called once in `globalSetup`. |
-| `getContext` | `(username, browser) => Promise<PWContext>` | Returns a new browser context pre-loaded with the saved session for the given user. |
+| `getContext` | `(username, browser) => Promise<PWContext>` | Returns a new browser context pre-loaded with the saved session for the given user. Injects token headers automatically when `tokenStorageConfig` is set. |
 | `readSession` | `(username) => Promise<EnrichedStorageState \| null>` | Reads the saved session for a user. Triggers re-authentication if the session is expired. |
-| `reauthenticateUser` | `(username, browser) => Promise<PWContext>` | Forces a fresh login for the given user, deleting the old session file. |
+| `reauthenticateUser` | `(username, browser) => Promise<PWContext>` | Forces a fresh login for the given user, deleting the old session file first. |
 | `logoutSession` | `(username) => Promise<void>` | Closes the in-memory context and deletes the session file for the given user. |
 | `teardown` | `() => Promise<void>` | Closes all open contexts and deletes all session files. Call in `globalTeardown`. |
 | `authConfig` | `IAuthConfig` | Read-only access to the loaded config. |
 | `getUserEffectiveConfig` | `(username) => IAuthConfig` | Returns the merged config for a specific user (root config + user-level overrides). |
 
-### `createAuthConfig(usersPath: string): IAuthConfig`
+### `createAuthConfig(usersPath: string): Promise<IAuthConfig>`
 
-Loads `base.config.ts` from the project root and merges in the users from the JSON file at `usersPath`. Returns a fully assembled `IAuthConfig`.
+Loads `base.config.ts` from the project root and merges in the users from the JSON file at `usersPath`. Returns a fully assembled `IAuthConfig`. If `VALIDATE_USER_URLS=1` is set in the environment, it also checks that each user's `actionUrl` is reachable before returning.
+
+### `deleteAuthStore(folderPath: string): Promise<void>`
+
+Deletes the directory at `folderPath` (resolved from the project root) and all session files inside it. Called automatically by `getOrCreateAuthManager()` when `deleteAuthStorageOnTestRun: true` is set. Also available for use in custom teardown scripts.
+
+```typescript
+import { deleteAuthStore } from "qa-pwmaf";
+
+// In globalTeardown, if you want to wipe sessions after every run:
+await deleteAuthStore(".auth");
+```
 
 ### `validateConfig(config: IAuthConfig): void`
 
@@ -1520,7 +1611,7 @@ Validates the assembled config against all structural rules. Throws a `ConfigVal
 A Playwright page object wrapping the login form. Instantiated internally by each strategy, but also exported for use in custom strategies.
 
 ```typescript
-import { AuthPage, AuthOverrideSelectors } from "qa-pwmaf";
+import { AuthPage } from "qa-pwmaf";
 
 const authPage = new AuthPage(page, selectors);
 
@@ -1577,11 +1668,19 @@ Safely combines an origin URL with a path, throwing a descriptive error if the b
 
 Returns the path `.auth/<username>.json`.
 
+### `ensureValidSession(username, browser): Promise<void>`
+
+Checks whether the session file for `username` exists and is not expired. If the session is expired or missing, it calls `reauthenticateUser` automatically. Useful in `beforeAll` hooks or custom fixtures.
+
+### `validateUserEndpoints(users): Promise<void>`
+
+Iterates over a list of users and makes an HTTP request to each user's `actionUrl`, throwing if any endpoint is unreachable. Activated automatically when `VALIDATE_USER_URLS=1` is set. Can also be called directly in custom setup code.
+
 ---
 
 ## Type Reference
 
-All types are exported from the root package entry point and from the `qa-pwmaf` sub-path export:
+All types are exported from the root package entry point:
 
 ```typescript
 import type {
@@ -1594,6 +1693,7 @@ import type {
   OTPSource,
   OAuthProvider,
   OIDCProvider,
+  IOIDCConfig,
   SAMLProvider,
   TokenType,
   IOTPConfig,
@@ -1613,13 +1713,22 @@ import type {
   PWContext,
   PWPage,
   PWLocator,
+  UserRole,
+  BaseFixtures,
 } from "qa-pwmaf";
 ```
 
-The `IAuthStrategy` interface and `AuthResult` type are exported from the root:
+The `IAuthStrategy` interface and `AuthResult` type are also exported from the root:
 
 ```typescript
 import type { IAuthStrategy, AuthResult } from "qa-pwmaf";
+```
+
+The package also provides sub-path exports for targeted imports:
+
+```typescript
+import type { IAuthConfig } from "qa-pwmaf/config";
+import type { IUser, AuthType }  from "qa-pwmaf/types";
 ```
 
 ---
@@ -1645,6 +1754,7 @@ import type { IAuthStrategy, AuthResult } from "qa-pwmaf";
 | OTP strategy: multi-input digit boxes | ✅ Supported |
 | OAuth 2.0 (Google, GitHub, Microsoft, Facebook) — mock | ✅ Supported |
 | OIDC (Okta, Auth0, Azure AD, Keycloak, Cognito, Ping) — mock | ✅ Supported |
+| OIDC via structured `oidcConfig` (provider, redirectUri, mockServerUrl) | ✅ Supported |
 | SAML (Okta, Azure, OneLogin, Ping, ADFS) | ✅ Supported |
 | Multi-user / multi-role session management | ✅ Supported |
 | Per-user auth type overrides | ✅ Supported |
@@ -1666,6 +1776,9 @@ import type { IAuthStrategy, AuthResult } from "qa-pwmaf";
 | Session event system (EventEmitter) | ✅ Supported |
 | Session metadata enrichment (savedAt, authType) | ✅ Supported |
 | Strategy step-by-step debug logging | ✅ Supported |
+| Playwright test fixtures (authManager, authConfig, getContext) | ✅ Supported |
+| Auth store cleanup utility (`deleteAuthStore`) | ✅ Supported |
+| User endpoint reachability validation (`VALIDATE_USER_URLS`) | ✅ Supported |
 
 ---
 
@@ -1684,49 +1797,176 @@ The following features are either planned or out of scope for the current versio
 | **Phone number authentication** | Login flows that begin with a phone number rather than an email are not covered. |
 | **Token refresh** | `refreshToken` is captured and stored in session metadata but active token refresh (calling a refresh endpoint before expiry) is not yet automatic. |
 | **Remote / distributed session store** | Sessions are saved to the local filesystem. There is no built-in adapter for Redis, S3, or a shared network path for multi-worker distributed Playwright runs. |
-| **Pre/post auth hooks** | There is no plugin hook system for running custom code before or after the authentication step within a strategy (e.g. to seed test data or handle MFA prompts). |
+| **Pre/post auth hooks** | There is no plugin hook system for running custom code before or after the authentication step within a strategy. |
 | **Custom SAML assertion handling** | The SAML strategy follows the SP-initiated flow but does not support custom assertion attributes, encrypted assertions, or multi-step SAML flows. |
 | **LinkedIn OAuth** | The `linkedInOAuthButton` selector exists but LinkedIn is not yet in the supported `OAuthProvider` type union or the route intercept map. |
-| **Twitter/X OAuth** | Similarly, Twitter/X is in the internal provider patterns map but not in the public type union. |
+| **Twitter/X OAuth** | Twitter/X is in the internal provider patterns map but not in the public type union. |
 
 ---
 
 ## Contributing
 
-Contributions of all kinds are welcome — bug fixes, new auth strategies, expanded provider support, test coverage, and documentation improvements.
+### Branch model
 
-### Before You Start
-
-1. Discuss significant changes (new strategies, breaking config changes) in a GitHub Issue first. This prevents duplicate work and ensures the change aligns with the project's direction.
-2. Write your code manually. See the [AI Usage Policy](#ai-usage-policy) below.
-3. Make sure existing tests pass before opening a PR: `npm test`.
-4. Add or update tests for any new behaviour you introduce.
-5. Update the relevant sections of this README if your change affects the public API, configuration, or the list of supported/unsupported features.
-
-### Development Setup
-
-```bash
-# 1. Fork the repo and clone your fork
-git clone https://github.com/<your-username>/pwmaf.git
-cd pwmaf
-
-# 2. Install dependencies
-npm install
-
-# 3. Build (compiles src/ → dist/ via tsup)
-npm run build
-
-# 4. Run type checking
-npm run typecheck
-
-# 5. Run tests
-npm test
-
-# 6. Watch mode during development
-npm run build:watch
+```
+master ← staging ← develop ← feature/your-branch
 ```
 
-### Step-by-Step Contribution Workflow
+- All work starts from `develop`
+- PRs merge `develop → staging`, then `staging → master`
+- **`master` and `staging` are protected** — CI must pass before any merge is allowed
+- Direct pushes to `master` or `staging` are blocked
+
+---
+
+### Before you open a PR
+
+```bash
+npm ci
+npm run typecheck      # must pass with zero errors
+npm test               # Jest unit tests — must all pass
+npx playwright test    # integration tests — must all pass locally
+```
+
+---
+
+### Mandatory test file rule
+
+**Every PR that touches source code must include or update a test file.**
+This is enforced by the PR checklist and verified in code review.
+PRs without matching test updates will not be merged.
+
+#### Which file do I need to update?
+
+| Source area | Test file |
+|---|---|
+| `src/core/AuthFactory.ts` | `tests/strategies/auth-factory.spec.ts` |
+| `src/strategeies/EmailPasswordStrategy.ts` (browser) | `tests/strategies/email-password.browser.spec.ts` |
+| `src/strategeies/EmailPasswordStrategy.ts` (API) | `tests/strategies/email-password.api.spec.ts` |
+| `src/strategeies/EmailOTPStrategy.ts` (browser) | `tests/strategies/email-otp.browser.spec.ts` |
+| `src/strategeies/EmailOTPStrategy.ts` (API) | `tests/strategies/email-otp.api.spec.ts` |
+| `src/strategeies/EmailPasswordOTPStrategy.ts` (browser) | `tests/strategies/email-password-otp.browser.spec.ts` |
+| `src/strategeies/EmailPasswordOTPStrategy.ts` (API) | `tests/strategies/email-password-otp.api.spec.ts` |
+| `src/strategeies/OAuthStrategy.ts` | `tests/strategies/oauth.spec.ts` |
+| `src/strategeies/OIDCStrategy.ts` | `tests/strategies/oidc.spec.ts` |
+| `src/strategeies/SAMLStrategy.ts` | `tests/strategies/saml.spec.ts` |
+| Custom strategy extension point (`IAuthStrategy`) | `tests/strategies/custom-strategy.spec.ts` |
+| `src/core/AuthManager.ts` | `tests/core/auth-manager.spec.ts` |
+| `src/core/OtpResolver.ts` | `tests/core/otp-resolver.spec.ts` |
+| `src/utils/tokenStorage.ts` / `TokenStorageConfig` | `tests/core/token-storage.spec.ts` |
+| `src/configs/validate-config.ts` / `ConfigValidationError` | `tests/core/config-validation.spec.ts` |
+| `src/core/AuthEvents.ts` / `src/core/AuthReporter.ts` | `tests/core/auth-events.spec.ts` |
+| Session file shape / `EnrichedStorageState` | `tests/session/persistence.spec.ts` |
+| `/api/me` integrity / role assertions | `tests/session/integrity.spec.ts` |
+| Session isolation / cross-contamination | `tests/session/isolation.spec.ts` |
+| Session expiry / stale file handling | `tests/session/expiry.spec.ts` |
+| API strategy error paths | `tests/error-paths/api-errors.spec.ts` |
+| `src/types.ts` | Whichever spec exercises the changed type |
+
+#### What does "update a test file" mean?
+
+1. **New feature** → add new `test()` blocks inside the relevant spec file
+2. **Bug fix** → add a regression test that would have caught the bug
+3. **Type/interface change** → update the test that exercises that type; add a new test if the change introduces new validation rules
+4. **Rename / restructure** → update imports and descriptions in the relevant spec
+
+Every test update must cover at minimum the happy path and at least one error path.
+
+---
+
+### Adding a new auth strategy
+
+If you're adding a new strategy (e.g. `MagicLinkStrategy`), create **two new spec files**:
+
+```
+tests/strategies/magic-link.browser.spec.ts   ← browser flow
+tests/strategies/magic-link.api.spec.ts       ← API path (if isApi: true is supported)
+```
+
+Add the strategy to the table in this file, the PR template, and the README.
+
+Also update `tests/strategies/auth-factory.spec.ts` to assert that
+`AuthFactory.getStrategy({ authType: "magic-link" })` returns your new class.
+
+---
+
+### Test file structure conventions
+
+Each spec file follows this pattern:
+
+```typescript
+/**
+ * <filename>.spec.ts — <area> (<section refs>)
+ *
+ * WHAT THIS FILE TESTS
+ * ─────────────────────────────────────────────────────────────────────────────
+ *  §N  Section title — what is verified and why
+ */
+
+// shared helper functions (u(), eff(), runStrategy(), etc.)
+
+test.describe("§N Section Title", () => {
+  test("scenario: expected outcome", async ({ browser, authConfig }) => {
+    // arrange
+    // act
+    // assert — always end with at least one expect()
+  });
+});
+```
+
+Rules:
+
+- **One `test.describe` per numbered section** (`§1`, `§2`, etc.)
+- **Test titles state the scenario and the expected outcome** — not what the code does
+- **No `test.only`** in committed code — it blocks the entire suite
+- **No `test.skip`** without a linked issue number in a comment
+
+---
+
+### CI pipeline
+
+```
+typecheck → unit (Jest) → build → E2E (strategies / api / session / core)
+                                         ↓
+                                  all-checks-pass  ←── branch protection points here
+```
+
+Every PR must pass the `all-checks-pass` job before it can merge.
+The `release.yml` workflow publishes to npm **only** after `all-checks-pass` succeeds on `master`.
+
+#### Running a specific CI slice locally
+
+```bash
+# strategies only
+npx playwright test tests/strategies/
+
+# API mode
+USE_API=true npx playwright test tests/strategies/ tests/error-paths/
+
+# core utilities (no browser needed for unit tests)
+npm test -- tests/core/config-validation.spec.ts
+npm test -- tests/core/auth-events.spec.ts
+```
+
+---
+
+### Coverage gaps to be aware of
+
+The following areas currently have reduced or partial coverage.
+If your PR touches these, adding tests is especially appreciated:
+
+| Area | Gap |
+|---|---|
+| `hidden-input` OTP strategy | Only structural tests — needs a mock server page with `autocomplete="one-time-code"` |
+| `TokenStorageConfig` header injection | Integration tests rely on `/api/echo-headers` endpoint not yet in all mocks |
+| `AuthReporter.attach()` idempotency | Documented as "at most 2" — needs enforcement and a hard assertion |
+| `authFile()` utility | Used everywhere, never unit-tested directly |
+| `buildApiUrl()` | Edge cases (path included in origin) untested |
+| CLI (`pwmaf init`) | Zero tests — any CLI change should add a test |
+
+---
+
+### Step-by-step contribution workflow
 
 ```bash
 # 1. Make sure you are on the develop branch and it is up to date
@@ -1737,7 +1977,6 @@ git pull origin develop
 git checkout -b feature/my-feature-name
 
 # 3. Write your code (manually — see AI policy below)
-# ... make changes ...
 
 # 4. Build and verify
 npm run typecheck
@@ -1763,35 +2002,17 @@ git push origin feature/my-feature-name
 - All CI checks must pass.
 - At least one maintainer review is required before merging.
 
-### Commit Message Convention
-
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
+### Commit style
 
 ```
-feat: add WebAuthn strategy
-fix: handle missing sessionCookie in OIDC mock callback
-docs: document OIDCProviderPatterns field
-test: add coverage for EmailPasswordOTP API path
-chore: bump @playwright/test to 1.62
+feat: add hidden-input OTP strategy
+fix: restore sessionStorage on context creation
+test: add token-storage coverage for dot-notation tokenPath
+docs: update README with TokenStorageConfig section
+chore: bump version to 0.2.10
 ```
 
----
-
-## Branch Strategy
-
-| Branch | Purpose | Protected | Who can merge |
-|---|---|---|---|
-| `master` | Production releases published to npm | ✅ Yes | Maintainers only, via PR from `staging` |
-| `staging` | Release candidates, pre-publish testing | ✅ Yes | Maintainers only, via PR from `develop` |
-| `develop` | Integration branch — all contributor PRs land here | ✅ Yes | Any contributor, via PR from a feature branch |
-
-**The flow is:**
-
-```
-feature/your-branch  →  develop  →  staging  →  master
-```
-
-Never commit directly to `develop`, `staging`, or `master`. All changes must travel through a Pull Request. Branch protection rules enforce this on the repository.
+Types: `feat`, `fix`, `test`, `docs`, `chore`, `refactor`, `perf`
 
 ---
 
