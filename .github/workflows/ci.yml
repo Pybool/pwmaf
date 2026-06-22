@@ -1,0 +1,254 @@
+name: CI
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Runs on every PR that targets a protected branch, and on direct pushes
+# to those branches (post-merge).  All jobs must pass before a PR can merge.
+#
+# Monorepo layout:
+#   packages/pwmaf        — the published `qa-pwmaf` library (built to dist/)
+#   packages/test-server   — the mock-server docker-compose stack
+#   apps/tests              — Playwright/E2E suite; resolves `qa-pwmaf` to the
+#                            local packages/pwmaf workspace, not the npm registry
+#                            (workspace name: `auth-matrix-tests`)
+#
+# `pull_request.branches` filters on the PR's BASE branch, so a PR from any
+# feature branch targeting develop/staging/master already triggers this
+# workflow — that part of the flow you described (pull develop -> push
+# feature branch -> PR) already works as-is.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  pull_request:
+    branches: [develop, staging, master]
+  push:
+    branches: [develop, staging, master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ───────────────────────── 1. Type-check ─────────────────────────────────
+  typecheck:
+    name: TypeScript type-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Typecheck pwmaf library
+        run: npm run typecheck --workspace=packages/pwmaf
+      - name: Typecheck tests app
+        run: npm run typecheck --workspace=apps/tests --if-present
+
+  # ─────────────── 3. Build (ensures pwmaf's dist/ compiles cleanly) ───────
+  # apps/tests imports `qa-pwmaf` from this workspace, so every E2E job below
+  # needs this dist/ output. Built once here and downloaded by each of them,
+  # instead of rebuilding the library four times in parallel.
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: typecheck
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build --workspace=packages/pwmaf
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pwmaf-dist
+          path: packages/pwmaf/dist/
+          retention-days: 1
+
+  # ─────────────────── 4. Playwright integration tests ─────────────────────
+  # Each job brings up the full mock-server stack defined in
+  # packages/test-server/docker-compose.yml (20 services, ports 3001-3020 —
+  # one per auth-type/flow/OTP-mode/token-type combination) via
+  # `docker compose up --wait`, which blocks until every service's /health
+  # check reports healthy.
+  #
+  # Test invocations go through the `auth-matrix-tests` workspace script
+  # (`npm --workspace auth-matrix-tests run test -- ...`) rather than calling
+  # `npx playwright test` directly inside apps/tests, since that script is
+  # bare `playwright test` and forwards everything after `--` straight to it.
+
+  test-strategies:
+    name: "E2E — Strategies (browser)"
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: pwmaf-dist
+          path: packages/pwmaf/dist
+      - name: Install Playwright browsers
+        run: npm --workspace auth-matrix-tests run install:browsers -- chromium
+      - name: Start mock servers
+        working-directory: packages/test-server
+        run: docker compose up --build -d --wait --wait-timeout 120
+      - name: Run strategy tests
+        run: npm --workspace auth-matrix-tests run test -- tests/strategies/ --reporter=github
+      - name: Dump mock server logs
+        if: failure()
+        working-directory: packages/test-server
+        run: docker compose logs --no-color > ${{ github.workspace }}/mock-servers.log
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-strategies
+          path: |
+            apps/tests/playwright-report/
+            mock-servers.log
+          retention-days: 7
+      - name: Stop mock servers
+        if: always()
+        working-directory: packages/test-server
+        run: docker compose down -v
+
+  test-strategies-api:
+    name: "E2E — Strategies (API mode)"
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      USE_API: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: pwmaf-dist
+          path: packages/pwmaf/dist
+      - name: Install Playwright browsers
+        run: npm --workspace auth-matrix-tests run install:browsers -- chromium
+      - name: Start mock servers
+        working-directory: packages/test-server
+        run: docker compose up --build -d --wait --wait-timeout 120
+      - name: Run API strategy tests
+        run: npm --workspace auth-matrix-tests run test -- tests/strategies/ tests/error-paths/ --reporter=github
+      - name: Dump mock server logs
+        if: failure()
+        working-directory: packages/test-server
+        run: docker compose logs --no-color > ${{ github.workspace }}/mock-servers.log
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-api
+          path: |
+            apps/tests/playwright-report/
+            mock-servers.log
+          retention-days: 7
+      - name: Stop mock servers
+        if: always()
+        working-directory: packages/test-server
+        run: docker compose down -v
+
+  test-session:
+    name: "E2E — Session (persistence / integrity / isolation)"
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: pwmaf-dist
+          path: packages/pwmaf/dist
+      - name: Install Playwright browsers
+        run: npm --workspace auth-matrix-tests run install:browsers -- chromium
+      - name: Start mock servers
+        working-directory: packages/test-server
+        run: docker compose up --build -d --wait --wait-timeout 120
+      - name: Run session tests
+        run: npm --workspace auth-matrix-tests run test -- tests/session/ --reporter=github
+      - name: Dump mock server logs
+        if: failure()
+        working-directory: packages/test-server
+        run: docker compose logs --no-color > ${{ github.workspace }}/mock-servers.log
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-session
+          path: |
+            apps/tests/playwright-report/
+            mock-servers.log
+          retention-days: 7
+      - name: Stop mock servers
+        if: always()
+        working-directory: packages/test-server
+        run: docker compose down -v
+
+  test-core:
+    name: "E2E — Core (AuthManager / OTPResolver / TokenStorage / Events)"
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: pwmaf-dist
+          path: packages/pwmaf/dist
+      - name: Install Playwright browsers
+        run: npm --workspace auth-matrix-tests run install:browsers -- chromium
+      - name: Start mock servers
+        working-directory: packages/test-server
+        run: docker compose up --build -d --wait --wait-timeout 120
+      - name: Run core tests
+        run: npm --workspace auth-matrix-tests run test -- tests/core/ --reporter=github
+      - name: Dump mock server logs
+        if: failure()
+        working-directory: packages/test-server
+        run: docker compose logs --no-color > ${{ github.workspace }}/mock-servers.log
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-core
+          path: |
+            apps/tests/playwright-report/
+            mock-servers.log
+          retention-days: 7
+      - name: Stop mock servers
+        if: always()
+        working-directory: packages/test-server
+        run: docker compose down -v
+
+  # ──────────────── 5. Required checks gate (merge blocker) ────────────────
+  # This is the single job that branch-protection rules point at, and the
+  # one release.yml's `gate` job waits on by name ("All checks passed").
+  # It only succeeds when every upstream job succeeds.
+  all-checks-pass:
+    name: All checks passed
+    runs-on: ubuntu-latest
+    needs:
+      - typecheck
+      - build
+      - test-strategies
+      - test-strategies-api
+      - test-session
+      - test-core
+    steps:
+      - run: echo "All CI jobs passed."

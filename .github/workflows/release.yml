@@ -1,0 +1,131 @@
+name: Release
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Triggered on push to master (post-merge from staging) OR manually via
+# workflow_dispatch when you need to force a specific bump type.
+#
+# Bump logic (push trigger):
+#   "BREAKING CHANGE" anywhere in the commit body → major
+#   commit subject starting with "feat:"              → minor
+#   everything else                                   → patch
+#
+# Bump logic (manual trigger):
+#   whatever you select in the "bump" input dropdown.
+#
+# [NOTE] Branch-protection note:
+#   The version bump step commits back to master. If master has a rule
+#   requiring PR reviews, that push will be blocked unless you add
+#   "github-actions[bot]" to the bypass list:
+#   Settings → Branches → master → "Allow specified actors to bypass".
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump type"
+        required: true
+        default: patch
+        type: choice
+        options: [patch, minor, major]
+
+jobs:
+  # ─────────────────────── 1. Verify CI passed 
+  gate:
+    name: Verify CI passed on this SHA
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check CI status
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.sha }}
+          check-name: "All checks passed"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 10
+
+  # ──────────────────── 2. Bump + publish + tag ───────────────────────────
+  publish:
+    name: Bump version, publish to npm, tag
+    runs-on: ubuntu-latest
+    needs: gate
+    permissions:
+      contents: write   # push version-bump commit + tag
+      id-token: write   # npm provenance
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Use a PAT here (instead of the default GITHUB_TOKEN) only if your
+          # master branch-protection rule requires signed commits — the default
+          # Actions token can push but can't sign.  Otherwise leave as-is.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - run: npm ci
+
+      # ── Determine bump type ────────────────────────────────────────────
+      # On workflow_dispatch the input wins outright.
+      # On push, inspect the HEAD commit message: BREAKING CHANGE → major,
+      # feat: → minor, anything else → patch.
+      - name: Determine bump type
+        id: bump
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            BUMP="${{ github.event.inputs.bump }}"
+          else
+            COMMIT_MSG=$(git log -1 --pretty=%B)
+            if echo "$COMMIT_MSG" | grep -q "BREAKING CHANGE"; then
+              BUMP="major"
+            elif echo "$COMMIT_MSG" | grep -qE "^feat(\(.+\))?!?:"; then
+              BUMP="minor"
+            else
+              BUMP="patch"
+            fi
+          fi
+          echo "type=$BUMP" >> "$GITHUB_OUTPUT"
+          echo "Bump type: $BUMP"
+
+      # ── Bump package.json (no git tag — we tag manually below) ─────────
+      - name: Bump version in packages/pwmaf
+        working-directory: packages/pwmaf
+        run: npm version ${{ steps.bump.outputs.type }} --no-git-tag-version
+
+      # ── Commit the version bump back to master ─────────────────────────
+      - name: Commit and push version bump
+        run: |
+          VERSION=$(node -p "require('./packages/pwmaf/package.json').version")
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add packages/pwmaf/package.json
+          # Also stage the root lockfile — npm workspaces updates it too.
+          git add package-lock.json || true
+          git commit -m "chore(release): bump pwmaf to v${VERSION} [skip ci]"
+          git push origin master
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+
+      # ── Build ──────────────────────────────────────────────────────────
+      - name: Build pwmaf
+        run: npm run build --workspace=packages/pwmaf
+
+      # ── Publish ────────────────────────────────────────────────────────
+      - name: Publish to npm
+        run: npm publish --workspace=packages/pwmaf --access=public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # ── Tag the publish commit ─────────────────────────────────────────
+      - name: Tag release
+        run: |
+          git tag "pwmaf-v${VERSION}"
+          git push origin "pwmaf-v${VERSION}"
+
+
+          
