@@ -16,40 +16,36 @@ on:
 
 jobs:
   release:
-    name: Bump version, publish to npm, tag
+    name: Publish to npm, tag
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
 
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      id-token: write
+      contents: write   # push tag
+      id-token: write   # npm provenance
 
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0   # full history so git tag -l sees all tags
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          # No registry-url here — we configure auth manually below so it
-          # works regardless of which directory npm resolves .npmrc from.
           cache: npm
 
       - run: npm ci
 
-      # ── Auth ────────────────────────────────────────────────────────────
-      # Write the token to ~/.npmrc (user-level). npm always checks here
-      # before any project-level .npmrc, so --workspace publishes from a
-      # subdirectory won't lose the token.
+      # ── Auth ──────────────────────────────────────────────────────────────
+      # Write to ~/.npmrc (user-level) so the token is found regardless of
+      # which directory npm resolves config from when using --workspace.
       - name: Authenticate with npm
         run: |
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
 
-      # ── Determine bump type ─────────────────────────────────────────────
+      # ── Determine bump type ───────────────────────────────────────────────
       - name: Determine bump type
         id: bump
         run: |
@@ -68,28 +64,43 @@ jobs:
           echo "type=$BUMP" >> "$GITHUB_OUTPUT"
           echo "Bump type: $BUMP"
 
-      # ── Bump package.json only (no git tag yet) ─────────────────────────
-      - name: Bump version in packages/pwmaf
-        working-directory: packages/pwmaf
-        run: npm version ${{ steps.bump.outputs.type }} --no-git-tag-version
-
-      # ── Read the new version ─────────────────────────────────────────────
-      - name: Read version
+      # ── Compute the next version from git tags ────────────────────────────
+      # Tags (not package.json) are the source of truth for the last published
+      # version, so we never need to commit back to the protected master branch.
+      # Tags can be pushed directly even when branch protection is on.
+      - name: Compute next version
+        id: version
         run: |
-          VERSION=$(node -p "require('./packages/pwmaf/package.json').version")
+          BUMP="${{ steps.bump.outputs.type }}"
+
+          # Find the latest pwmaf-v* tag; fall back to package.json on first run.
+          LATEST_TAG=$(git tag -l "pwmaf-v*" | sort -V | tail -1)
+          if [ -z "$LATEST_TAG" ]; then
+            CURRENT=$(node -p "require('./packages/pwmaf/package.json').version")
+            echo "No existing tag found — using package.json baseline: $CURRENT"
+          else
+            CURRENT="${LATEST_TAG#pwmaf-v}"
+            echo "Latest tag: $LATEST_TAG — current version: $CURRENT"
+          fi
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          case "$BUMP" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+          esac
+
+          VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "Next version: $VERSION"
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
-      # ── Commit the bumped package.json back to master ────────────────────
-      # [skip ci] stops CI re-triggering on this bot commit, which would
-      # otherwise fire another Release run via workflow_run.
-      - name: Commit and push version bump
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add packages/pwmaf/package.json
-          git add package-lock.json || true
-          git commit -m "chore(release): bump pwmaf to v${VERSION} [skip ci]"
-          git push origin master
+      # ── Stamp the version into package.json for this build only ──────────
+      # --no-git-tag-version: don't commit or tag — we handle the tag below.
+      # This change is NOT pushed back to master (no commit, no PR needed).
+      - name: Set version in packages/pwmaf
+        working-directory: packages/pwmaf
+        run: npm version ${{ steps.version.outputs.value }} --no-git-tag-version --allow-same-version
 
       # ── Build ─────────────────────────────────────────────────────────────
       - name: Build package
@@ -100,7 +111,10 @@ jobs:
         run: npm publish --workspace=packages/pwmaf --access public --provenance
 
       # ── Tag ───────────────────────────────────────────────────────────────
+      # Tags bypass branch protection — only commits require a PR.
       - name: Create and push tag
         run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag "pwmaf-v${VERSION}"
           git push origin "pwmaf-v${VERSION}"
