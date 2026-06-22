@@ -1,7 +1,7 @@
 {
   "name": "qa-pwmaf",
-  "version": "0.2.9",
-  "description": "Playwright Multi Auth Framework, zero-config session management for email/password, OTP, OAuth, OIDC, and SAML authentication flows",
+  "version": "1.0.0",
+  "description": "Playwright Multi Auth Framework, config based session management for email/password, OTP, OAuth, OIDC, and SAML authentication flows",
   "author": "Emmanuel Eko <eeko.official@outlook.com>",
   "license": "MIT",
   "homepage": "https://github.com/pybool/pwmaf#readme",
